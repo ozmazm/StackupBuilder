@@ -1,0 +1,758 @@
+{
+  "materials": [
+    {
+      "id": "r-f777-13ej-12-25-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "13EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 49.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-25-12um (ED), parsed from R-F777 datasheet variant 13EJ."
+    },
+    {
+      "id": "r-f777-12ej-18-25-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "12EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 61.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-25-18um (ED), parsed from R-F777 datasheet variant 12EJ."
+    },
+    {
+      "id": "r-f777-11ed-35-25-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "11ED",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 90.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-25-35um (ED), parsed from R-F777 datasheet variant 11ED."
+    },
+    {
+      "id": "r-f777-23ej-12-50-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "23EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 74.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-50-12um (ED), parsed from R-F777 datasheet variant 23EJ."
+    },
+    {
+      "id": "r-f777-22ej-18-50-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "22EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 86.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-50-18um (ED), parsed from R-F777 datasheet variant 22EJ."
+    },
+    {
+      "id": "r-f777-21ed-35-50-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "21ED",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 120.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-50-35um (ED), parsed from R-F777 datasheet variant 21ED."
+    },
+    {
+      "id": "r-f777-13rv-12-25-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "13RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 49.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-25-12um (RA), parsed from R-F777 datasheet variant 13RV."
+    },
+    {
+      "id": "r-f777-12rv-18-25-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "12RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 61.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-25-18um (RA), parsed from R-F777 datasheet variant 12RV."
+    },
+    {
+      "id": "r-f777-11rv-35-25-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "11RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 95.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-25-35um (RA), parsed from R-F777 datasheet variant 11RV."
+    },
+    {
+      "id": "r-f777-23rv-12-50-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "23RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 74.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-50-12um (RA), parsed from R-F777 datasheet variant 23RV."
+    },
+    {
+      "id": "r-f777-22rv-18-50-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "22RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 86.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-50-18um (RA), parsed from R-F777 datasheet variant 22RV."
+    },
+    {
+      "id": "r-f777-21rv-35-50-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "21RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 120.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-50-35um (RA), parsed from R-F777 datasheet variant 21RV."
+    },
+    {
+      "id": "r-f777-8he9-70-20-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "8HE9",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 70.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": false,
+      "dielectric_thickness_um": 20.0,
+      "dielectric_thickness_mm": 0.02,
+      "total_product_thickness_um": 108.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 70-20-18um (ED), parsed from R-F777 datasheet variant 8HE9."
+    },
+    {
+      "id": "r-f777-33rv-12-75-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "33RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 75.0,
+      "dielectric_thickness_mm": 0.075,
+      "total_product_thickness_um": 99.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-75-12um (RA), parsed from R-F777 datasheet variant 33RV."
+    },
+    {
+      "id": "r-f777-32rv-18-75-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "32RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 75.0,
+      "dielectric_thickness_mm": 0.075,
+      "total_product_thickness_um": 111.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-75-18um (RA), parsed from R-F777 datasheet variant 32RV."
+    },
+    {
+      "id": "r-f777-42rv-18-100-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "42RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 100.0,
+      "dielectric_thickness_mm": 0.1,
+      "total_product_thickness_um": 136.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-100-18um (RA), parsed from R-F777 datasheet variant 42RV."
+    },
+    {
+      "id": "r-f777-33ej-12-75-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "33EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 75.0,
+      "dielectric_thickness_mm": 0.075,
+      "total_product_thickness_um": 99.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-75-12um (ED), parsed from R-F777 datasheet variant 33EJ."
+    },
+    {
+      "id": "r-f777-32ej-18-75-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "32EJ",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 75.0,
+      "dielectric_thickness_mm": 0.075,
+      "total_product_thickness_um": 111.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-75-18um (ED), parsed from R-F777 datasheet variant 32EJ."
+    },
+    {
+      "id": "r-f777-41em-35-100-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "41EM",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 100.0,
+      "dielectric_thickness_mm": 0.1,
+      "total_product_thickness_um": 170.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-100-35um (ED), parsed from R-F777 datasheet variant 41EM."
+    },
+    {
+      "id": "r-f777-52rv-18-12-5-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "52RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 12.5,
+      "dielectric_thickness_mm": 0.0125,
+      "total_product_thickness_um": 49.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-12.5-18um (RA), parsed from R-F777 datasheet variant 52RV."
+    },
+    {
+      "id": "r-f777-12r5-18-25-18",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "12R5",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 18.0,
+      "copper_thickness_bottom_um": 18.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 61.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 18-25-18um (RA), parsed from R-F777 datasheet variant 12R5."
+    },
+    {
+      "id": "r-f777-21ed-35-25-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "21ED",
+      "copper_type": "ED",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 25.0,
+      "dielectric_thickness_mm": 0.025,
+      "total_product_thickness_um": 120.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-25-35um (ED), parsed from R-F777 datasheet variant 21ED."
+    },
+    {
+      "id": "r-f777-53rv-12-12-5-12",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "53RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 12.0,
+      "copper_thickness_bottom_um": 12.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 12.5,
+      "dielectric_thickness_mm": 0.0125,
+      "total_product_thickness_um": 37.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.2,
+        "1.0": 3.2
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.2,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 12-12.5-12um (RA), parsed from R-F777 datasheet variant 53RV."
+    },
+    {
+      "id": "r-f777-31rv-35-75-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "31RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 75.0,
+      "dielectric_thickness_mm": 0.075,
+      "total_product_thickness_um": 145.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-75-35um (RA), parsed from R-F777 datasheet variant 31RV."
+    },
+    {
+      "id": "r-f777-41rv-35-100-35",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "41RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 35.0,
+      "copper_thickness_bottom_um": 35.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 100.0,
+      "dielectric_thickness_mm": 0.1,
+      "total_product_thickness_um": 170.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 35-100-35um (RA), parsed from R-F777 datasheet variant 41RV."
+    },
+    {
+      "id": "r-f777-20rv-70-50-70",
+      "manufacturer": "Panasonic",
+      "series": "R-F777",
+      "family": "R-F777",
+      "material_type": "flex_core",
+      "variant_code": "20RV",
+      "copper_type": "RA",
+      "copper_thickness_top_um": 70.0,
+      "copper_thickness_bottom_um": 70.0,
+      "symmetric_copper": true,
+      "dielectric_thickness_um": 50.0,
+      "dielectric_thickness_mm": 0.05,
+      "total_product_thickness_um": 190.0,
+      "dk_by_freq_ghz": {
+        "0.1": 3.3,
+        "1.0": 3.3
+      },
+      "df_by_freq_ghz": {
+        "0.1": 0.005,
+        "1.0": 0.005
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 3.3,
+      "reference_df": 0.005,
+      "max_freq_ghz": 1.0,
+      "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+      "notes": "2-layer double-side FCCL, construction 70-50-70um (RA), parsed from R-F777 datasheet variant 20RV."
+    }
+  ]
+}

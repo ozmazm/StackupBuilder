@@ -1,0 +1,52 @@
+{
+  "materials": [
+    {
+      "id": "arisawa-c33-cvl-pi",
+      "manufacturer": "Arisawa",
+      "series": "C33",
+      "family": "C33",
+      "material_type": "coverlay_pi",
+      "component": "coverlay_pi",
+      "thickness_um": 12.5,
+      "thickness_mm": 0.0125,
+      "dk_by_freq_ghz": {
+        "10.0": 2.95
+      },
+      "df_by_freq_ghz": {
+        "10.0": 0.0053
+      },
+      "reference_freq_ghz": 10.0,
+      "reference_dk": 2.95,
+      "reference_df": 0.0053,
+      "max_freq_ghz": 10.0,
+      "peel_strength_n_per_cm": 8.5,
+      "solder_heat_resistance_c": 300.0,
+      "source_pdf": "CoverlayAdhessive_Arisawa_C33.pdf",
+      "notes": "Polyimide-film component of the C33 coverlay laminate ('Coverlay' row on datasheet)."
+    },
+    {
+      "id": "arisawa-c33-cvl-adhesive",
+      "manufacturer": "Arisawa",
+      "series": "C33",
+      "family": "C33",
+      "material_type": "coverlay_adhesive",
+      "component": "coverlay_adhesive",
+      "thickness_um": 25.0,
+      "thickness_mm": 0.025,
+      "dk_by_freq_ghz": {
+        "10.0": 2.6
+      },
+      "df_by_freq_ghz": {
+        "10.0": 0.0026
+      },
+      "reference_freq_ghz": 10.0,
+      "reference_dk": 2.6,
+      "reference_df": 0.0026,
+      "max_freq_ghz": 10.0,
+      "peel_strength_n_per_cm": 8.5,
+      "solder_heat_resistance_c": 300.0,
+      "source_pdf": "CoverlayAdhessive_Arisawa_C33.pdf",
+      "notes": "Adhesive-only component of the C33 coverlay laminate ('Adhesive only' row on datasheet)."
+    }
+  ]
+}

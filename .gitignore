@@ -1,0 +1,51 @@
+# Python caches and environments
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+env/
+
+# Test, type-checker, and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build and release output
+build/
+dist/
+release_dist/
+runtime/
+*.log
+
+# Local editor/agent state
+.agents/
+.cursor/
+.vscode/
+.idea/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Vendored SDK checkout is not used by the application runtime
+emsdk-main/
+
+# Local manufacturer source PDFs are optional; generated JSON catalogs are tracked
+Materials/
+
+# Generated screenshots and local engineering exports
+tmp_*.png
+14L_ISOLA_MT40.stk
+14L_ISOLA_MT40.txt
+stackup_export.txt
+impedance_table.xlsx
+STACKUP PROGRAM_COMPARE.pptx
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

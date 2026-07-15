@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="canonical" href="https://hforsten.com/field_solver.html">
+    <meta name="author" content="Henrik Forstén" />
+    <meta name="description" content="2D transmission line field solver" />
+    <meta property="og:site_name" content="Henrik's Blog" />
+    <meta property="og:type" content="article"/>
+    <meta property="og:title" content="2D Transmission Line Field Solver"/>
+    <meta property="og:url" content="https://hforsten.com/field_solver.html"/>
+    <meta property="og:description" content="2D transmission line field solver"/>
+    <meta property="article:published_time" content="2026-01-27" />
+    <meta property="article:section" content="Electronics" />
+    <meta property="article:author" content="Henrik Forstén" />
+    <meta property="og:image" content="https://hforsten.com/img/field-solver/header.png"/>
+    <title>2D Transmission Line Field Solver</title>
+    <script>
+        // Load Plotly dynamically after page renders to avoid blocking
+        window.plotlyLoadStart = performance.now();
+
+        // Use requestIdleCallback or setTimeout to load after initial render
+        function loadPlotly() {
+            // Primary source (build.sh will replace this with CDN for production)
+            const PRIMARY_PLOTLY_SRC = 'plotly-3.3.0.min.js';
+            // Fallback is always local
+            const FALLBACK_PLOTLY_SRC = 'plotly-3.3.0.min.js';
+
+            const script = document.createElement('script');
+            script.src = PRIMARY_PLOTLY_SRC;
+            script.charset = 'utf-8';
+
+            script.onload = function() {
+                console.log('Plotly loaded after', performance.now() - window.plotlyLoadStart, 'ms');
+                document.querySelectorAll('.plotly-loading').forEach(el => el.remove());
+                window.dispatchEvent(new Event('plotly-loaded'));
+            };
+
+            // Fallback to local file if CDN fails or is unreachable (e.g. firewall)
+            script.onerror = function() {
+                console.warn('Primary source failed, falling back to local plotly');
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = FALLBACK_PLOTLY_SRC;
+                fallbackScript.charset = 'utf-8';
+                fallbackScript.onload = function() {
+                    console.log('Plotly loaded from fallback after', performance.now() - window.plotlyLoadStart, 'ms');
+                    document.querySelectorAll('.plotly-loading').forEach(el => el.remove());
+                    window.dispatchEvent(new Event('plotly-loaded'));
+                };
+                fallbackScript.onerror = function() {
+                    console.error('[ERROR] Both primary and fallback plotly failed to load');
+                    // Show error message to user
+                    document.querySelectorAll('.plotly-loading').forEach(el => {
+                        el.innerHTML = '<div style="color: #f59e0b;">Failed to load Plotly library. Plotting unavailable.</div>';
+                    });
+                };
+                document.head.appendChild(fallbackScript);
+            };
+
+            document.head.appendChild(script);
+        }
+
+        // Load after page is visible
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(loadPlotly);
+        } else {
+            setTimeout(loadPlotly, 1);
+        }
+    </script>
+    <link rel="stylesheet" href="solver-style.css">
+</head>
+<body>
+
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .plotly-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        color: #888;
+        font-size: 14px;
+    }
+    .plotly-loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #333;
+        border-top: 3px solid #888;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 15px;
+    }
+</style>
+
+<button class="mobile-menu-toggle" id="mobileMenuToggle">☰ Menu</button>
+<div class="mobile-backdrop" id="mobileBackdrop"></div>
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <button id="btn_solve">Solve</button>
+        <div class="progress-container" id="progress_container">
+            <div class="progress-bar" id="progress_bar"></div>
+        </div>
+    </div>
+    <div class="sidebar-scroll">
+    <div class="control-group">
+        <label for="tl_type">Transmission Line Type</label>
+        <select id="tl_type">
+            <option value="microstrip">Microstrip</option>
+            <option value="diff_microstrip">Differential Microstrip</option>
+            <option value="stripline">Stripline</option>
+            <option value="diff_stripline">Differential Stripline</option>
+            <option value="gcpw">GCPW</option>
+            <option value="diff_gcpw">Differential GCPW</option>
+            <option value="broadside_stripline">Broadside Coupled Stripline</option>
+        </select>
+    </div>
+
+    <div id="microstrip-params">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>Geometry</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Trace Width</label>
+                <input type="text" class="unit-input" id="inp_w" value="0.35 mm">
+            </div>
+            <div class="control-group">
+                <label>Substrate Height</label>
+                <input type="text" class="unit-input" id="inp_h" value="0.21 mm">
+            </div>
+            <div class="control-group">
+                <label>Trace Thickness</label>
+                <input type="text" class="unit-input" id="inp_t" value="35 μm">
+            </div>
+            <div class="control-group">
+                <label>Relative Permittivity (&epsilon;<sub>r</sub>)</label>
+                <input type="number" id="inp_er" value="4.4" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Loss Tangent (tan &delta;)</label>
+                <input type="number" id="inp_tand" value="0.02" inputmode="decimal" placeholder="0">
+            </div>
+            <div class="control-group">
+                <label>Conductivity (S/m) <span class="help-icon" onclick="showHelpModal('conductivity')">?</span></label>
+                <input type="number" id="inp_sigma" value="5.8e7" inputmode="decimal">
+            </div>
+        </div>
+    </div>
+
+    <div id="gcpw-params" style="display: none;">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>GCPW Parameters</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Gap</label>
+                <input type="text" class="unit-input" id="inp_gap" value="0.1 mm">
+            </div>
+            <div class="control-group">
+                <label>Via Gap</label>
+                <input type="text" class="unit-input" id="inp_via_gap" value="0.1 mm">
+            </div>
+        </div>
+    </div>
+
+    <div id="stripline-params" style="display: none;">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>Stripline Parameters</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Top Dielectric Height <span class="help-icon" onclick="showHelpModal('top_diel_height', event)">?</span></label>
+                <input type="text" class="unit-input" id="inp_air_top" value="0.4 mm">
+            </div>
+            <div class="control-group">
+                <label>Top Permittivity (&epsilon;<sub>r,top</sub>)</label>
+                <input type="number" id="inp_er_top" value="4.5" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Top Loss Tangent</label>
+                <input type="number" id="inp_tand_top" value="0.02" inputmode="decimal" placeholder="0">
+            </div>
+        </div>
+    </div>
+
+    <div id="diff-params" style="display: none;">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>Differential Pair</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Trace Spacing</label>
+                <input type="text" class="unit-input" id="inp_trace_spacing" value="0.2 mm">
+            </div>
+        </div>
+    </div>
+
+    <div id="broadside-params" style="display: none;">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>Broadside Coupled Stripline</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Trace Width</label>
+                <input type="text" class="unit-input" id="inp_bs_w" value="0.2 mm">
+            </div>
+            <div class="control-group">
+                <label>Trace Thickness</label>
+                <input type="text" class="unit-input" id="inp_bs_t" value="35 μm">
+            </div>
+            <div class="control-group">
+                <label>X Offset (upper trace)</label>
+                <input type="text" class="unit-input" id="inp_bs_x_offset" value="0 mm">
+            </div>
+            <div class="control-group">
+                <label>Conductivity (S/m)</label>
+                <input type="number" id="inp_bs_sigma" value="5.8e7" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Bottom Substrate Height <span class="help-icon" onclick="showHelpModal('bs_h_bottom', event)">?</span></label>
+                <input type="text" class="unit-input" id="inp_bs_h_bottom" value="0.2 mm">
+            </div>
+            <div class="control-group">
+                <label>Bottom Permittivity</label>
+                <input type="number" id="inp_bs_er_bottom" value="4.4" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Bottom Loss Tangent</label>
+                <input type="number" id="inp_bs_tand_bottom" value="0.02" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Middle Substrate Height <span class="help-icon" onclick="showHelpModal('bs_h_middle', event)">?</span></label>
+                <input type="text" class="unit-input" id="inp_bs_h_middle" value="0.2 mm">
+            </div>
+            <div class="control-group">
+                <label>Middle Permittivity</label>
+                <input type="number" id="inp_bs_er_middle" value="4.4" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Middle Loss Tangent</label>
+                <input type="number" id="inp_bs_tand_middle" value="0.02" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Top Substrate Height <span class="help-icon" onclick="showHelpModal('bs_h_top', event)">?</span></label>
+                <input type="text" class="unit-input" id="inp_bs_h_top" value="0.2 mm">
+            </div>
+            <div class="control-group">
+                <label>Top Permittivity</label>
+                <input type="number" id="inp_bs_er_top" value="4.4" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Top Loss Tangent</label>
+                <input type="number" id="inp_bs_tand_top" value="0.02" inputmode="decimal">
+            </div>
+        </div>
+    </div>
+
+    <div id="advanced-params">
+        <div class="section-header collapsed" onclick="toggleSection(this)">
+            <h3>Advanced Options</h3>
+        </div>
+        <div class="section-content collapsed">
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_solder_mask"> Enable Solder Mask</label>
+        </div>
+        <div id="solder-mask-params" class="nested-options" style="display: none;">
+            <div class="control-group">
+                <label>Mask over Substrate</label>
+                <input type="text" class="unit-input" id="inp_sm_t_sub" value="20 μm">
+            </div>
+            <div class="control-group">
+                <label>Mask over Trace</label>
+                <input type="text" class="unit-input" id="inp_sm_t_trace" value="20 μm">
+            </div>
+            <div class="control-group">
+                <label>Mask Side Thickness</label>
+                <input type="text" class="unit-input" id="inp_sm_t_side" value="20 μm">
+            </div>
+            <div class="control-group">
+                <label>Mask Permittivity (&epsilon;<sub>r,sm</sub>)</label>
+                <input type="number" id="inp_sm_er" value="3.5" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Mask Loss Tangent</label>
+                <input type="number" id="inp_sm_tand" value="0.02" inputmode="decimal" placeholder="0">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_top_diel"> Enable Top Dielectric</label>
+        </div>
+        <div id="top-diel-params" class="nested-options" style="display: none;">
+            <div class="control-group">
+                <label>Top Dielectric Height</label>
+                <input type="text" class="unit-input" id="inp_top_diel_h" value="0.2 mm">
+            </div>
+            <div class="control-group">
+                <label>Top Dielectric Permittivity</label>
+                <input type="number" id="inp_top_diel_er" value="4.5">
+            </div>
+            <div class="control-group">
+                <label>Top Dielectric Loss Tangent</label>
+                <input type="number" id="inp_top_diel_tand" value="0.02" inputmode="decimal" placeholder="0">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_gnd_cut"> Enable Ground Cutout</label>
+        </div>
+        <div id="gnd-cut-params" class="nested-options" style="display: none;">
+            <div class="control-group">
+                <label>Cutout Width</label>
+                <input type="text" class="unit-input" id="inp_gnd_cut_w" value="0.5 mm">
+            </div>
+            <div class="control-group">
+                <label>Substrate Below Cutout</label>
+                <input type="text" class="unit-input" id="inp_gnd_cut_h" value="0.5 mm">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_enclosure"> Enable Enclosure</label>
+        </div>
+        <div id="enclosure-params" class="nested-options" style="display: none;">
+            <div class="control-group">
+                <label><input type="checkbox" id="chk_side_gnd"> Side Ground</label>
+            </div>
+            <div class="control-group" id="top-gnd-group">
+                <label><input type="checkbox" id="chk_top_gnd"> Top Ground</label>
+            </div>
+            <div class="control-group">
+                <label>Width</label>
+                <input type="text" class="unit-input" id="inp_enclosure_width" placeholder="auto">
+            </div>
+            <div class="control-group" id="enclosure-height-group">
+                <label>Height</label>
+                <input type="text" class="unit-input" id="inp_enclosure_height" placeholder="auto">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Surface Roughness RMS <span class="help-icon" onclick="showHelpModal('roughness')">?</span></label>
+            <input type="text" class="unit-input" id="inp_rq" value="0 μm">
+        </div>
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_plating"> Enable Surface Plating <span class="help-icon" onclick="showHelpModal('plating', event)">?</span></label>
+        </div>
+        <div id="plating-params" class="nested-options" style="display: none;">
+            <div class="control-group">
+                <label>Applied Surfaces</label>
+                <div style="display: flex; gap: 12px; margin-top: 4px;">
+                    <label style="font-weight: normal;"><input type="checkbox" id="chk_plating_top" checked> Top</label>
+                    <label style="font-weight: normal;"><input type="checkbox" id="chk_plating_sides" checked> Sides</label>
+                    <label style="font-weight: normal;"><input type="checkbox" id="chk_plating_bottom"> Bottom</label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Plating Conductivity (S/m)</label>
+                <input type="number" id="inp_plating_sigma" value="1e7" inputmode="decimal">
+            </div>
+            <div class="control-group">
+                <label>Plating Thickness</label>
+                <input type="text" class="unit-input" id="inp_plating_t" value="4 μm">
+            </div>
+            <div class="control-group">
+                <label>Plating Roughness RMS</label>
+                <input type="text" class="unit-input" id="inp_plating_rq" value="0 μm">
+            </div>
+            <div class="control-group">
+                <label><input type="checkbox" id="chk_plating_thick_corners" checked> Model Thick Plating <span class="help-icon" onclick="showHelpModal('plating_thick_corners', event)">?</span></label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><input type="checkbox" id="chk_causal_materials"> Use Causal Material Parameters <span class="help-icon" onclick="showHelpModal('causal', event)">?</span></label>
+        </div>
+        </div>
+    </div>
+
+    <div id="freq-sweep-params">
+        <div class="section-header" onclick="toggleSection(this)">
+            <h3>Frequency Sweep</h3>
+        </div>
+        <div class="section-content">
+            <div class="control-group">
+                <label>Start Frequency</label>
+                <input type="text" class="unit-input" id="freq-start" value="0.1 GHz" inputmode="decimal" min="0">
+            </div>
+            <div class="control-group">
+                <label>Stop Frequency</label>
+                <input type="text" class="unit-input" id="freq-stop" value="10 GHz" inputmode="decimal" min="0">
+            </div>
+            <div class="control-group">
+                <label>Points</label>
+                <input type="number" id="freq-points" value="200" step="1">
+            </div>
+            <div class="control-group">
+                <label><input type="checkbox" id="chk_interp_sweep" checked> Interpolating sweep <span class="help-icon" onclick="showHelpModal('interp_sweep', event)">?</span></label>
+            </div>
+            <div class="control-group" id="interp-tolerance-group" style="display:none;">
+                <label>Interpolation tolerance (%)</label>
+                <input type="number" id="interp_tolerance" value="0.5" min="0.01" max="5" step="0.1">
+            </div>
+        </div>
+    </div>
+
+
+    <div id="plot-options">
+    <div class="section-header collapsed" onclick="toggleSection(this)">
+        <h3>Plot Options</h3>
+    </div>
+    <div class="section-content collapsed">
+        <!-- Mode selector hidden - now in Plotly menu -->
+        <select id="plot-mode" style="display: none;">
+            <option value="odd">Odd</option>
+            <option value="even">Even</option>
+        </select>
+        <div class="control-group">
+            <label>Streamlines</label>
+            <input type="number" id="plot-streamlines" value="" step="5" min="0" placeholder="None">
+        </div>
+        <div class="control-group">
+            <label>Contours</label>
+            <input type="number" id="plot-contours" value="20" step="5" min="0" placeholder="None">
+        </div>
+    </div>
+    </div>
+
+    <div id="solver-settings">
+    <div class="section-header collapsed" onclick="toggleSection(this)">
+        <h3>Solver Settings</h3>
+    </div>
+    <div class="section-content collapsed">
+    <div class="control-group">
+        <label>Max Iterations</label>
+        <input type="number" id="inp_max_iters" value="10" step="1" min="1">
+    </div>
+    <div class="control-group">
+        <label>Max Nodes (thousands)<span class="help-icon" onclick="showHelpModal('maxnodes')">?</span></label>
+        <input type="number" id="inp_max_nodes" value="20" step="1" min="1" max="200">
+    </div>
+    <div class="control-group">
+        <label>Min Converged Passes</label>
+        <input type="number" id="inp_min_converged_passes" value="2" step="1" min="1">
+    </div>
+    <div class="control-group">
+        <label>Tolerance <span class="help-icon" onclick="showHelpModal('tolerance')">?</span></label>
+        <input type="number" id="inp_tolerance" value="0.01" inputmode="decimal" min="0" max="1">
+    </div>
+    </div>
+    </div>
+
+    </div><!-- end sidebar-scroll -->
+</div>
+
+<div class="main-content">
+    <div class="tab-bar">
+        <button class="tab-button active" data-tab="geometry">Geometry</button>
+        <button class="tab-button" data-tab="results">Results</button>
+        <button class="tab-button" data-tab="sparams">S-Parameters</button>
+        <button class="tab-button" data-tab="sweep">Parameter Sweep</button>
+        <button class="tab-button" data-tab="about">About</button>
+    </div>
+
+    <div id="tab-geometry" class="tab-content active">
+        <div class="canvas-container">
+            <div id="sim_canvas">
+                <div class="plotly-loading">
+                    <div class="plotly-loading-spinner"></div>
+                    <span>Loading Plotly library...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-results" class="tab-content">
+        <div class="results-controls">
+            <select id="results-plot-selector">
+                <option value="re_z0">Re(Z0)</option>
+                <option value="im_z0">Im(Z0)</option>
+                <option value="eps_eff">Effective permittivity</option>
+                <option value="loss">Loss (dB/m)</option>
+                <option value="R">R (Ohm/m)</option>
+                <option value="L">L (H/m)</option>
+                <option value="C">C (F/m)</option>
+                <option value="G">G (S/m)</option>
+            </select>
+            <button id="freeze-results-btn" style="width:auto; padding:6px 12px; font-size:0.85em;">Freeze</button>
+            <span class="help-icon" onclick="showHelpModal('freeze')">?</span>
+        </div>
+        <div id="results-plot" class="plot-container">
+            <div class="plotly-loading">
+                <div class="plotly-loading-spinner"></div>
+                <span>Loading Plotly library...</span>
+            </div>
+        </div>
+        <div class="results-controls bottom">
+            <label class="checkbox-label"><input type="checkbox" id="results-log-x"> Log frequency axis</label>
+            <button id="copy-link-btn">Copy link</button><span class="help-icon" onclick="showHelpModal('copylink')">?</span>
+            <button id="export-csv-btn">Export CSV</button>
+            <label class="checkbox-label"><input type="checkbox" id="results-diff"> Differential-mode</label>
+            <div id="results-notice" style="display: none; padding: 6px 10px; background: #3d3520; border-left: 3px solid #f59e0b; font-size: 0.8em; border-radius: 3px; color: #fbbf24;">
+                <strong>⚠</strong> <span id="results-notice-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-sparams" class="tab-content">
+        <div class="results-controls">
+            <select id="sparam-plot-mode">
+                <option value="magnitude">Magnitude (dB)</option>
+                <option value="phase">Phase (degrees)</option>
+            </select>
+            <button id="freeze-sparams-btn" style="width:auto; padding:6px 12px; font-size:0.85em;">Freeze</button>
+            <span class="help-icon" onclick="showHelpModal('freeze')">?</span>
+        </div>
+        <div id="sparam-plot" class="plot-container">
+            <div class="plotly-loading">
+                <div class="plotly-loading-spinner"></div>
+                <span>Loading Plotly library...</span>
+            </div>
+        </div>
+        <div class="sparam-controls">
+            <label class="checkbox-label"><input type="checkbox" id="sparam-log-x"> Log frequency axis</label>
+            <label>Line Length: <input type="text" class="unit-input" id="sparam-length" value="10 mm" step="0.001"></label>
+            <label>Reference Impedance: <input type="number" id="sparam-z-ref" value="50" step="1" min="1"> Ohm</label>
+            <label class="checkbox-label"><input type="checkbox" id="sparam-diff"> Differential-mode</label>
+            <button id="export-snp">Export SnP file</button>
+            <div id="sparam-notice" style="display: none; padding: 6px 10px; background: #3d3520; border-left: 3px solid #f59e0b; font-size: 0.8em; border-radius: 3px; flex-shrink: 0; color: #fbbf24;">
+                <strong>⚠</strong> <span id="sparam-notice-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-sweep" class="tab-content">
+        <div class="results-controls">
+            <label style="color:var(--text-muted); font-size:0.9em;">Output:
+                <select id="sweep-y-selector">
+                    <option value="re_z0">Re(Z0)</option>
+                    <option value="im_z0">Im(Z0)</option>
+                    <option value="eps_eff">Effective permittivity</option>
+                    <option value="loss">Loss (dB/m)</option>
+                    <option value="R">R (Ohm/m)</option>
+                    <option value="L">L (H/m)</option>
+                    <option value="C">C (F/m)</option>
+                    <option value="G">G (S/m)</option>
+                </select>
+            </label>
+            <label style="color:var(--text-muted); font-size:0.9em;">Parameter:
+                <select id="sweep-x-selector"></select>
+            </label>
+        </div>
+        <div class="results-controls">
+            <label style="color:var(--text-muted); font-size:0.9em;">Min: <input type="text" class="unit-input" id="sweep-x-min" style="width:90px;"></label>
+            <label style="color:var(--text-muted); font-size:0.9em;">Max: <input type="text" class="unit-input" id="sweep-x-max" style="width:90px;"></label>
+            <label style="color:var(--text-muted); font-size:0.9em;">Points: <input type="number" id="sweep-points" value="10" min="2" max="200" style="width:60px;"></label>
+            <label style="color:var(--text-muted); font-size:0.9em;">Frequency: <input type="text" class="unit-input" id="sweep-freq" value="1 GHz" style="width:90px;"></label>
+            <label class="checkbox-label"><input type="checkbox" id="sweep-diff" disabled> Differential mode</label>
+            <button id="btn-run-sweep" style="width:auto; padding:8px 18px;">Run Sweep</button>
+            <button id="btn-stop-sweep" style="width:auto; padding:8px 18px; display:none; background:#f44336;">Stop</button>
+            <span id="sweep-progress-text" style="color:var(--text-muted); font-size:0.85em;"></span>
+            <div id="sweep-notice" style="display: none; padding: 6px 10px; background: #3d3520; border-left: 3px solid #f59e0b; font-size: 0.8em; border-radius: 3px; color: #fbbf24;">
+                <strong>⚠</strong> <span id="sweep-notice-text"></span>
+            </div>
+        </div>
+        <div id="sweep-plot" class="plot-container"></div>
+    </div>
+
+    <div id="tab-about" class="tab-content">
+        <div class="about-content">
+            <h2>2D Transmission Line Field Solver</h2>
+            <p>by <a href="https://hforsten.com" target="_blank">Henrik Forstén</a> | <a href="https://github.com/Ttl/js_2d_fields" target="_blank">Source code & issues</a></p>
+            <p style="color: #888; font-size: 0.85em;">Version: BUILD_VERSION</p>
+            <p>A quasi-static 2D field solver for transmission line analysis using the finite difference method with adaptive mesh refinement.</p>
+
+            <h3>Validity</h3>
+            <ul>
+                <li>Designed for microstrip, stripline, and coplanar waveguide structures commonly used in PCB RF and high-speed digital designs.</li>
+                <li>Provides good results when the transmission line supports TEM or quasi-TEM propagation, which covers most practical PCB geometries below the onset of higher-order modes.</li>
+                <li>Results have been checked against EM solver and actual measurement data with different geometries and transmission line types, showing close agreement with small error in typical use cases.</li>
+                <li>Accurate from RF through microwave and high-speed digital frequencies where return currents are confined and skin effect is significant.</li>
+                <li>Suitable for impedance control, loss estimation, and S-parameter generation in the vast majority of PCB transmission line applications.</li>
+            </ul>
+
+            <h3>Limitations</h3>
+            <ul>
+                <li>Higher-order modes, dispersion, and cutoff behavior are not modeled. Structures that support non-TEM modes (e.g., waveguides) are outside the solver's validity range.</li>
+                <li>Current is modeled at the surface for AC and DC resistance is blended smoothly at low frequencies. Full 2D/3D current density inside conductors is not solved, which can reduce accuracy at frequencies where skin depth is comparable to conductor thickness.</li>
+                <li>At DC and low frequencies (~&lt;1 MHz), return current spreads over the ground plane. Since the solver infers inductance from capacitance, partial inductance and finite ground width effects may be inaccurate.</li>
+                <li>Results apply to uniform, infinitely long transmission lines.</li>
+                <li>Radiation is not modeled</li>
+            </ul>
+
+            <h3>Methodology</h3>
+            <p>The solver computes the characteristic impedance and propagation parameters of transmission lines by solving Laplace's equation for the electric potential distribution in the cross-section:</p>
+            <p style="text-align: center; font-family: serif; font-size: 1.1em;">&nabla;&sup2;V = 0</p>
+            <p>From the potential solution, the capacitance per unit length is calculated by integrating the electric field around the conductor. The inductance is determined by solving the same problem with air dielectric to find C<sub>0</sub>, then using:</p>
+            <p style="text-align: center; font-family: serif; font-size: 1.1em;">L = 1 / (c&sup2; &middot; C<sub>0</sub>)</p>
+            <p>where c is the speed of light.</p>
+
+            <h3>Loss Calculations</h3>
+            <p><strong>Conductor loss</strong> is computed with perturbation method that calculates losses only on conductor boundaries. DC bulk resistance is blended at low frequencies for better loss at frequencies where skin depth is of similar scale as conductor dimensions. The surface roughness model implements <a href="https://ieeexplore.ieee.org/document/7932148" target="_blank">Gradient model</a>.</p>
+            <p><strong>Dielectric loss</strong> is calculated from the loss tangent of each dielectric region, weighted by the field energy distribution.</p>
+
+            <h3>S-Parameters</h3>
+            <p>S-parameters are computed from the RLGC transmission line model using standard ABCD matrix formulation. For differential lines, modal decomposition separates odd and even modes, which are then combined into 4-port S-parameters.</p>
+
+            <h3>Adaptive Mesh Refinement</h3>
+            <p>The solver uses adaptive mesh refinement to concentrate grid points where the field gradients are highest (near conductor edges and dielectric interfaces), improving accuracy while keeping computation tractable.</p>
+        </div>
+    </div>
+
+    <div class="output-panel" id="console_out"></div>
+</div>
+
+<div id="scaleDialog" style="
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #222;
+    color: #eee;
+    padding: 12px;
+    border-radius: 6px;
+    display: none;
+    z-index: 1000;
+    width: 180px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    font-size: 13px;
+">
+    <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px">
+        Field Scale
+    </div>
+
+    <label style="display: block; margin-bottom: 6px; font-size: 12px">
+        Min:
+        <input id="zMinInput" type="number" step="any" style="width: 100%; padding: 3px; margin-top: 2px; font-size: 11px">
+    </label>
+
+    <label style="display: block; margin-bottom: 8px; font-size: 11px">
+        <input id="zMinSlider" type="range" style="width: 100%; margin-top: 2px">
+    </label>
+
+    <label style="display: block; margin-bottom: 6px; font-size: 12px">
+        Max:
+        <input id="zMaxInput" type="number" step="any" style="width: 100%; padding: 3px; margin-top: 2px; font-size: 11px">
+    </label>
+
+    <label style="display: block; margin-bottom: 10px; font-size: 11px">
+        <input id="zMaxSlider" type="range" style="width: 100%; margin-top: 2px">
+    </label>
+
+    <div style="margin-top: 8px; text-align: right">
+        <button onclick="closeScaleDialog()" style="padding: 4px 12px; font-size: 12px">Close</button>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="help-modal">
+    <div class="help-modal-content">
+        <span class="help-modal-close" onclick="closeHelpModal()">&times;</span>
+        <h3 id="helpModalTitle"></h3>
+        <div id="helpModalBody"></div>
+    </div>
+</div>
+
+<script>
+    // ========== Unit Parsing System ==========
+
+    /**
+     * Parse a value with optional unit suffix and convert to SI base unit
+     * @param {string|number} input - Value with optional unit (e.g., "1mm", "0.001 mil", "10 GHz")
+     * @param {string} defaultUnit - Default unit if none specified (e.g., "mm", "μm", "GHz", "Hz")
+     * @returns {number} - Value in SI base unit (meters for length, Hz for frequency)
+     */
+    function parseValueWithUnit(input, defaultUnit = '') {
+        if (typeof input === 'number') return input;
+        if (!input || input.trim() === '') return NaN;
+
+        const str = input.toString().trim().toLowerCase();
+
+        // Match number (with optional sign, decimal, scientific notation) followed by optional unit
+        const match = str.match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:[e][+-]?\d+)?)\s*([a-zμµ]*)$/i);
+        if (!match) return NaN;
+
+        const value = parseFloat(match[1]);
+        let unit = match[2] || defaultUnit.toLowerCase();
+
+        // Normalize unicode variations
+        unit = unit.replace(/µ/g, 'μ');
+
+        // Length units - convert to meters
+        const lengthUnits = {
+            'm': 1,
+            'meter': 1, 'meters': 1,
+            'cm': 1e-2,
+            'mm': 1e-3,
+            'um': 1e-6, 'μm': 1e-6, 'micron': 1e-6, 'microns': 1e-6,
+            'nm': 1e-9,
+            'mil': 25.4e-6,  // 1 mil = 1/1000 inch = 25.4 μm
+            'mils': 25.4e-6,
+            'in': 25.4e-3,   // 1 inch = 25.4 mm
+            'inch': 25.4e-3, 'inches': 25.4e-3,
+            'ft': 0.3048,    // 1 foot = 0.3048 m
+            'foot': 0.3048, 'feet': 0.3048,
+        };
+
+        // Frequency units - convert to Hz
+        // Note: 'm' is MHz (milliHertz not supported), 't' is THz
+        const frequencyUnits = {
+            'hz': 1,
+            'khz': 1e3, 'k': 1e3,
+            'mhz': 1e6, 'm': 1e6,  // 'm' = MHz, not milliHertz
+            'ghz': 1e9, 'g': 1e9,
+            'thz': 1e12, 't': 1e12,
+        };
+
+        // Check length units first
+        if (unit in lengthUnits) {
+            return value * lengthUnits[unit];
+        }
+
+        // Check frequency units
+        if (unit in frequencyUnits) {
+            return value * frequencyUnits[unit];
+        }
+
+        // No unit specified and defaultUnit was provided - use default
+        if (unit === '' && defaultUnit !== '') {
+            // Reparse with default unit
+            return parseValueWithUnit(value, defaultUnit);
+        }
+
+        // No unit specified and no default - return value as-is (assume SI base unit)
+        if (unit === '') {
+            return value;
+        }
+
+        // Unknown unit - return NaN to indicate invalid input
+        return NaN;
+    }
+
+    /**
+     * Format a value with appropriate unit for display
+     * @param {number} valueInSI - Value in SI base unit
+     * @param {string} preferredUnit - Preferred display unit (e.g., "mm", "GHz")
+     * @returns {string} - Formatted string with unit
+     */
+    function formatValueWithUnit(valueInSI, preferredUnit) {
+        if (isNaN(valueInSI) || valueInSI === null || valueInSI === undefined) return '';
+
+        const unitMap = {
+            'mm': { scale: 1e-3, symbol: 'mm' },
+            'μm': { scale: 1e-6, symbol: 'μm' },
+            'um': { scale: 1e-6, symbol: 'μm' },
+            'mil': { scale: 25.4e-6, symbol: 'mil' },
+            'in': { scale: 25.4e-3, symbol: 'in' },
+            'GHz': { scale: 1e9, symbol: 'GHz' },
+            'MHz': { scale: 1e6, symbol: 'MHz' },
+            'kHz': { scale: 1e3, symbol: 'kHz' },
+            'Hz': { scale: 1, symbol: 'Hz' },
+        };
+
+        const unit = unitMap[preferredUnit] || { scale: 1, symbol: '' };
+        const displayValue = valueInSI / unit.scale;
+
+        // Format with appropriate precision
+        let formatted;
+        if (Math.abs(displayValue) >= 1000) {
+            formatted = displayValue.toExponential(3);
+        } else if (Math.abs(displayValue) >= 100) {
+            formatted = displayValue.toFixed(1);
+        } else if (Math.abs(displayValue) >= 10) {
+            formatted = displayValue.toFixed(2);
+        } else if (Math.abs(displayValue) >= 1) {
+            formatted = displayValue.toFixed(3);
+        } else if (Math.abs(displayValue) >= 0.01) {
+            formatted = displayValue.toFixed(4);
+        } else {
+            formatted = displayValue.toExponential(3);
+        }
+
+        // Remove trailing zeros after decimal point
+        formatted = formatted.replace(/\.?0+$/, '').replace(/\.?0+(e)/, '$1');
+
+        return unit.symbol ? formatted + ' ' + unit.symbol : formatted;
+    }
+
+    /**
+     * Get the default/expected unit for an input field based on its ID and label
+     */
+    function getDefaultUnit(inputId) {
+        const unitMap = {
+            // Geometry - mm
+            'inp_w': 'mm',
+            'inp_h': 'mm',
+            'inp_trace_spacing': 'mm',
+            'inp_gap': 'mm',
+            'inp_via_gap': 'mm',
+            'inp_air_top': 'mm',
+            'inp_top_diel_h': 'mm',
+            'inp_gnd_cut_w': 'mm',
+            'inp_gnd_cut_h': 'mm',
+            'inp_enclosure_width': 'mm',
+            'inp_enclosure_height': 'mm',
+
+            // Thickness - μm
+            'inp_t': 'μm',
+            'inp_sm_t_sub': 'μm',
+            'inp_sm_t_trace': 'μm',
+            'inp_sm_t_side': 'μm',
+            'inp_rq': 'μm',
+            'inp_plating_t': 'μm',
+            'inp_plating_rq': 'μm',
+
+            // Frequency - GHz
+            'freq-start': 'GHz',
+            'freq-stop': 'GHz',
+
+            // S-param length - mm
+            'sparam-length': 'mm',
+
+            // Parameter sweep frequency - GHz
+            'sweep-freq': 'GHz',
+        };
+
+        return unitMap[inputId] || '';
+    }
+
+    /**
+     * Validate an input field with units (but don't modify user input)
+     * Provides visual feedback for invalid units
+     */
+    function parseAndNormalizeInput(inputElement) {
+        const inputValue = inputElement.value.trim();
+        if (!inputValue) return;
+
+        const defaultUnit = getDefaultUnit(inputElement.id);
+        const parsedSI = parseValueWithUnit(inputValue, defaultUnit);
+
+        if (isNaN(parsedSI)) {
+            inputElement.classList.add('invalid');
+            inputElement.title = 'Invalid unit';
+        } else {
+            inputElement.classList.remove('invalid');
+            inputElement.title = '';
+        }
+    }
+
+    /**
+     * Get numeric value from input field, parsing units
+     * This should be used instead of parseFloat() for unit-aware inputs
+     * @param {string} inputId - ID of the input element
+     * @param {number} conversionFactor - Optional factor to multiply (for backward compatibility)
+     * @returns {number} - Parsed value in SI units (or multiplied by conversionFactor)
+     */
+    window.getInputValue = function(inputId, conversionFactor = 1) {
+        const element = document.getElementById(inputId);
+        if (!element) return NaN;
+
+        const defaultUnit = getDefaultUnit(inputId);
+        const valueSI = parseValueWithUnit(element.value, defaultUnit);
+
+        return valueSI * conversionFactor;
+    };
+
+    // Export for use in modules
+    window.parseValueWithUnit = parseValueWithUnit;
+    window.formatValueWithUnit = formatValueWithUnit;
+    window.getDefaultUnit = getDefaultUnit;
+
+    // Collapsible Section Toggle
+    function toggleSection(header) {
+        header.classList.toggle('collapsed');
+        const content = header.nextElementSibling;
+        if (content && content.classList.contains('section-content')) {
+            content.classList.toggle('collapsed');
+        }
+    }
+
+    // Help Modal Functions
+    const helpContent = {
+        roughness: {
+            title: 'Surface Roughness',
+            body: '<p>Conductor loss is calculated using gradient model (<a href="https://ieeexplore.ieee.org/document/7932148" target="_blank">https://ieeexplore.ieee.org/document/7932148</a>), both loss and inductance caused by the surface roughness is calculated. All conductors use this roughness on all sides. On PCB, typical RMS roughness is about 1 - 2 µm for normal copper foil and about 0.5 µm for special low profile foil.</p>'
+        },
+        plating: {
+            title: 'Surface Plating',
+            body: '<p>Models a single plating layer on top of the bulk conductor using a <a href="https://ieeexplore.ieee.org/document/9903540" target="_blank">layered gradient model</a>. The plating roughness is used for both the plating layer and the bulk metal underneath (since the plating conforms to the bulk surface).</p><p>Applied to signal traces and coplanar ground conductors on the substrate. Select which surfaces of the conductor receive plating: top (facing away from substrate), sides, or bottom (facing substrate).</p><p>Unselected surfaces use the base Surface Roughness RMS setting with the single-layer model.</p>'
+        },
+        plating_thick_corners: {
+            title: 'Model Thick Plating',
+            body: '<p>When enabled, models thick side plating extending to bottom corners. At bottom corners where side plating thickness exceeds the distance to the edge, the plating material conductivity is used with the substrate roughness.</p><p>Only applies when side plating is enabled and bottom is disabled.</p>'
+        },
+        conductivity: {
+            title: 'Conductivity',
+                body: '<p>Electrical conductivity of the conductor material.</p><p><strong>Common materials at room temperature:</strong></p><ul><li>Silver: 6.3×10<sup>7</sup> S/m</li><li>Copper: 5.8×10<sup>7</sup> S/m</li><li>Gold: 4.5×10<sup>7</sup> S/m</li><li>Aluminium: 3.5×10<sup>7</sup> S/m</li><li>Nickel: 1.4×10<sup>7</sup> S/m</li></ul><p>At low frequencies Nickel has high magnetic permeability that increases conductor losses and is not yet supported.</p>'
+        },
+        causal: {
+            title: 'Causal Material Parameters',
+            body: '<p>Applies the Djordjevic-Sarkar (Wideband Debye) model to enforce causality in dielectric materials. This model adjusts both permittivity and loss tangent as a function of frequency to satisfy Kramers-Kronig relations. The model uses a wideband fit from 1 kHz to 1 THz, with the reference frequency set at 1 GHz. This is the same model used by Ansys HFSS and other commercial EM solvers.</p><p><strong>Performance Impact:</strong> Enabling causal materials requires solving the Laplace equation at each frequency point (since field distributions change with frequency-dependent permittivity). This makes frequency sweeps significantly slower</p><p><strong>When to use:</strong> Broadband sweeps (multiple decades) where causality is required such as signal integrity simulation using export S-parameters.'
+        },
+        tolerance: {
+            title: 'Tolerance',
+            body: '<p>Terminates adaptive mesh refinement if the relative change in the total energy stored in electromagnetic field changes less than this value between iterations. 0.05 should result in <1 ohm impedance error with fast calculation speed. Decrease to 0.01 or less for more accurate results. Param error in log is relative error between calculated output parameters Z0 and C.</p>'
+        },
+        maxnodes: {
+            title: 'Max nodes (thousands)',
+            body: '<p>Maximum node budget for adaptive meshing. About 200k nodes will need 1 GB of memory and will be very slow to solve, avoid going above that unless really needed. 20k nodes is a good default.</p>'
+        },
+        copylink: {
+            title: 'Copy link',
+            body: '<p>Copies URL to clip board with all transmission line parameters encoded in it. Opening it will load the same parameters.</p>'
+        },
+        freeze: {
+            title: 'Freeze Trace',
+            body: '<p>Saves the current plot data as a semi-transparent reference trace. The frozen trace persists when you change parameters and re-run the simulation, letting you visually compare results.</p><p>For S-Parameters, the frozen trace also preserves the line length and reference impedance from freeze time.</p><p>Click Unfreeze to remove the reference trace.</p>'
+        },
+        interp_sweep: {
+            title: 'Interpolating Sweep',
+            body: '<p>Computes exact RLGC at a small number of adaptively chosen frequencies, then uses cubic spline interpolation to produce results at all output points. This is much faster than computing at every frequency, especially with causal materials enabled.</p><p>The algorithm adaptively refines until the interpolation error is below the specified tolerance.</p><p>S-parameters are computed analytically from interpolated RLGC, so they remain accurate even for long lines.</p>'
+        },
+        top_diel_height: {
+            title: 'Top Dielectric Height',
+            body: '<p>Distance from the substrate surface (trace bottom) to the top ground plane. The trace extends upward into this region.</p><p>Total ground-to-ground spacing = substrate height + top dielectric height. Trace thickness does not add to the ground-to-ground spacing.</p>'
+        },
+        bs_h_bottom: {
+            title: 'Bottom Substrate Height',
+            body: '<p>Distance from the top surface of the bottom ground plane to the bottom reference of the lower conductor (i.e. the bottom of the lower conductor when trace thickness is positive).</p>'
+        },
+        bs_h_middle: {
+            title: 'Middle Substrate Height',
+            body: '<p>Distance from the bottom of the lower conductor to the top of the upper conductor. Spans both trace thicknesses plus the dielectric gap between them. For positive trace thickness, the minimum allowed value is 2 × Trace Thickness.</p><p>Dielectric gap between traces = Middle Substrate Height − 2 × Trace Thickness.</p><p>Ground-to-ground spacing = Bottom + Middle + Top substrate heights (trace thickness is not counted separately).</p>'
+        },
+        bs_h_top: {
+            title: 'Top Substrate Height',
+            body: '<p>Distance from the top of the upper conductor to the bottom surface of the top ground plane.</p><p>Ground-to-ground spacing = Bottom + Middle + Top substrate heights (trace thickness is not counted separately).</p>'
+        }
+    };
+
+    function showHelpModal(topic, event) {
+
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        const content = helpContent[topic];
+        if (content) {
+            document.getElementById('helpModalTitle').textContent = content.title;
+            document.getElementById('helpModalBody').innerHTML = content.body;
+            document.getElementById('helpModal').style.display = 'block';
+        }
+    }
+
+    function closeHelpModal() {
+        document.getElementById('helpModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+        const modal = document.getElementById('helpModal');
+        if (event.target === modal) {
+            closeHelpModal();
+        }
+    }
+
+    function toggleParameterVisibility() {
+        const tlType = document.getElementById('tl_type').value;
+        const microstripParams = document.getElementById('microstrip-params');
+        const diffParams = document.getElementById('diff-params');
+        const gcpwParams = document.getElementById('gcpw-params');
+        const striplineParams = document.getElementById('stripline-params');
+        const broadsideParams = document.getElementById('broadside-params');
+        const advancedParams = document.getElementById('advanced-params');
+        const solderMaskGroup = advancedParams.querySelector('.control-group:has(#chk_solder_mask)');
+        const solderMaskParams = document.getElementById('solder-mask-params');
+        const topDielGroup = advancedParams.querySelector('.control-group:has(#chk_top_diel)');
+        const topDielParams = document.getElementById('top-diel-params');
+        const gndCutGroup = advancedParams.querySelector('.control-group:has(#chk_gnd_cut)');
+        const gndCutParams = document.getElementById('gnd-cut-params');
+        const enclosureGroup = advancedParams.querySelector('.control-group:has(#chk_enclosure)');
+        const enclosureParams = document.getElementById('enclosure-params');
+        const topGndGroup = document.getElementById('top-gnd-group');
+        const enclosureHeightGroup = document.getElementById('enclosure-height-group');
+
+        // Hide all type-specific params first
+        diffParams.style.display = 'none';
+        gcpwParams.style.display = 'none';
+        striplineParams.style.display = 'none';
+        broadsideParams.style.display = 'none';
+
+        // Common params visible by default (hidden for broadside which has its own block)
+        microstripParams.style.display = (tlType === 'broadside_stripline') ? 'none' : 'block';
+
+        // Always show advanced params
+        advancedParams.style.display = 'block';
+
+        // Get the checkboxes
+        const chkSolderMask = document.getElementById('chk_solder_mask');
+        const chkTopDiel = document.getElementById('chk_top_diel');
+        const chkGndCut = document.getElementById('chk_gnd_cut');
+        const chkEnclosure = document.getElementById('chk_enclosure');
+
+        if (tlType === 'microstrip') {
+            // Enable all advanced options for microstrip
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            if (topGndGroup) topGndGroup.style.display = 'block';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'block';
+            if (chkSolderMask) chkSolderMask.disabled = false;
+            if (chkTopDiel) chkTopDiel.disabled = false;
+            if (chkGndCut) chkGndCut.disabled = false;
+            if (chkEnclosure) chkEnclosure.disabled = false;
+        } else if (tlType === 'diff_microstrip') {
+            diffParams.style.display = 'block';
+            // Enable all advanced options for diff microstrip
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            if (topGndGroup) topGndGroup.style.display = 'block';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'block';
+            if (chkSolderMask) chkSolderMask.disabled = false;
+            if (chkTopDiel) chkTopDiel.disabled = false;
+            if (chkGndCut) chkGndCut.disabled = false;
+            if (chkEnclosure) chkEnclosure.disabled = false;
+        } else if (tlType === 'stripline') {
+            striplineParams.style.display = 'block';
+            // Show but disable all advanced options for stripline
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            // Hide top ground checkbox and height for stripline (already has top ground)
+            if (topGndGroup) topGndGroup.style.display = 'none';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'none';
+            if (chkSolderMask) {
+                chkSolderMask.disabled = true;
+                chkSolderMask.checked = false;
+                solderMaskParams.style.display = 'none';
+            }
+            if (chkTopDiel) {
+                chkTopDiel.disabled = true;
+                chkTopDiel.checked = false;
+                topDielParams.style.display = 'none';
+            }
+            if (chkGndCut) {
+                chkGndCut.disabled = true;
+                chkGndCut.checked = false;
+                gndCutParams.style.display = 'none';
+            }
+            if (chkEnclosure) {
+                chkEnclosure.disabled = false;
+            }
+        } else if (tlType === 'diff_stripline') {
+            diffParams.style.display = 'block';
+            striplineParams.style.display = 'block';
+            // Show but disable all advanced options for diff stripline (same as stripline)
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            // Hide top ground checkbox and height for diff stripline (already has top ground)
+            if (topGndGroup) topGndGroup.style.display = 'none';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'none';
+            if (chkSolderMask) {
+                chkSolderMask.disabled = true;
+                chkSolderMask.checked = false;
+                solderMaskParams.style.display = 'none';
+            }
+            if (chkTopDiel) {
+                chkTopDiel.disabled = true;
+                chkTopDiel.checked = false;
+                topDielParams.style.display = 'none';
+            }
+            if (chkGndCut) {
+                chkGndCut.disabled = true;
+                chkGndCut.checked = false;
+                gndCutParams.style.display = 'none';
+            }
+            if (chkEnclosure) {
+                chkEnclosure.disabled = false;
+            }
+        } else if (tlType === 'gcpw') {
+            gcpwParams.style.display = 'block';
+            // Enable all advanced options for GCPW
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            if (topGndGroup) topGndGroup.style.display = 'block';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'block';
+            if (chkSolderMask) chkSolderMask.disabled = false;
+            if (chkTopDiel) chkTopDiel.disabled = false;
+            if (chkGndCut) chkGndCut.disabled = false;
+            if (chkEnclosure) chkEnclosure.disabled = false;
+        } else if (tlType === 'diff_gcpw') {
+            diffParams.style.display = 'block';
+            gcpwParams.style.display = 'block';
+            // Enable all advanced options for diff GCPW
+            if (solderMaskGroup) solderMaskGroup.style.display = 'block';
+            if (topDielGroup) topDielGroup.style.display = 'block';
+            if (gndCutGroup) gndCutGroup.style.display = 'block';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            if (topGndGroup) topGndGroup.style.display = 'block';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'block';
+            if (chkSolderMask) chkSolderMask.disabled = false;
+            if (chkTopDiel) chkTopDiel.disabled = false;
+            if (chkGndCut) chkGndCut.disabled = false;
+            if (chkEnclosure) chkEnclosure.disabled = false;
+        } else if (tlType === 'broadside_stripline') {
+            broadsideParams.style.display = 'block';
+            // Only enclosure + plating apply; hide solder mask, top dielectric, ground cutout.
+            if (solderMaskGroup) solderMaskGroup.style.display = 'none';
+            if (topDielGroup) topDielGroup.style.display = 'none';
+            if (gndCutGroup) gndCutGroup.style.display = 'none';
+            if (enclosureGroup) enclosureGroup.style.display = 'block';
+            // Top/bottom grounds are intrinsic; only side ground via enclosure makes sense.
+            if (topGndGroup) topGndGroup.style.display = 'none';
+            if (enclosureHeightGroup) enclosureHeightGroup.style.display = 'none';
+            if (chkSolderMask) {
+                chkSolderMask.disabled = true;
+                chkSolderMask.checked = false;
+                solderMaskParams.style.display = 'none';
+            }
+            if (chkTopDiel) {
+                chkTopDiel.disabled = true;
+                chkTopDiel.checked = false;
+                topDielParams.style.display = 'none';
+            }
+            if (chkGndCut) {
+                chkGndCut.disabled = true;
+                chkGndCut.checked = false;
+                gndCutParams.style.display = 'none';
+            }
+            if (chkEnclosure) chkEnclosure.disabled = false;
+        }
+    }
+
+    function toggleCheckboxSection(checkboxId, sectionId) {
+        const checkbox = document.getElementById(checkboxId);
+        const section = document.getElementById(sectionId);
+        section.style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    // Mobile menu toggle functionality
+    function toggleMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('mobileBackdrop');
+        const menuBtn = document.getElementById('mobileMenuToggle');
+
+        sidebar.classList.toggle('mobile-open');
+        backdrop.classList.toggle('active');
+
+        // Hide menu button when sidebar is open to prevent overlap with Solve button
+        if (sidebar.classList.contains('mobile-open')) {
+            menuBtn.classList.add('hidden');
+        } else {
+            menuBtn.classList.remove('hidden');
+        }
+    }
+
+    function closeMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('mobileBackdrop');
+        const menuBtn = document.getElementById('mobileMenuToggle');
+
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+        menuBtn.classList.remove('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('tl_type').addEventListener('change', toggleParameterVisibility);
+        toggleParameterVisibility(); // Set initial visibility
+
+        // Checkbox toggles for advanced options
+        document.getElementById('chk_solder_mask').addEventListener('change', () => {
+            toggleCheckboxSection('chk_solder_mask', 'solder-mask-params');
+        });
+        document.getElementById('chk_top_diel').addEventListener('change', () => {
+            toggleCheckboxSection('chk_top_diel', 'top-diel-params');
+        });
+        document.getElementById('chk_gnd_cut').addEventListener('change', () => {
+            toggleCheckboxSection('chk_gnd_cut', 'gnd-cut-params');
+        });
+        document.getElementById('chk_enclosure').addEventListener('change', () => {
+            toggleCheckboxSection('chk_enclosure', 'enclosure-params');
+        });
+        document.getElementById('chk_plating').addEventListener('change', () => {
+            toggleCheckboxSection('chk_plating', 'plating-params');
+        });
+
+        // Initialize checkbox sections based on restored state (for browser auto-restore)
+        toggleCheckboxSection('chk_solder_mask', 'solder-mask-params');
+        toggleCheckboxSection('chk_top_diel', 'top-diel-params');
+        toggleCheckboxSection('chk_gnd_cut', 'gnd-cut-params');
+        toggleCheckboxSection('chk_enclosure', 'enclosure-params');
+        toggleCheckboxSection('chk_plating', 'plating-params');
+
+        // Setup unit parsing for all unit-input fields
+        document.querySelectorAll('.unit-input').forEach(input => {
+            // Parse on blur
+            input.addEventListener('blur', function() {
+                parseAndNormalizeInput(this);
+            });
+
+            // Parse on Enter key
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    parseAndNormalizeInput(this);
+                    this.blur();
+                }
+            });
+        });
+
+        // Mobile menu toggle
+        document.getElementById('mobileMenuToggle').addEventListener('click', toggleMobileMenu);
+        document.getElementById('mobileBackdrop').addEventListener('click', closeMobileMenu);
+
+        // Close mobile menu when clicking a tab (to see the content)
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
+    });
+</script>
+<script type="module" src="app_solver.js"></script>
+</body>
+</html>

@@ -1,0 +1,1955 @@
+import createWASMModule from './wasm_solver/solver.js';
+import { Complex } from "./complex.js";
+import { calculate_Zrough, calculate_Zrough_layered } from './surface_roughness.js';
+import { applyDjordjevicSarkar } from './djordjevic_sarkar.js';
+
+export const CONSTANTS = {
+    EPS0: 8.854187817e-12,
+    MU0: 4 * Math.PI * 1e-7,
+    C: 299792458,
+    PI: Math.PI
+};
+
+// --- Math Utils ---
+
+export function diff(arr) {
+    const res = new Float64Array(arr.length - 1);
+    for (let i = 0; i < arr.length - 1; i++) res[i] = arr[i+1] - arr[i];
+    return res;
+}
+
+function buildCSR(colLists, valLists, N) {
+    let nnz = 0;
+    for (let i = 0; i < N; i++) nnz += colLists[i].length;
+
+    const rowPtr = new Int32Array(N + 1);
+    const colIdx = new Int32Array(nnz);
+    const values = new Float64Array(nnz);
+
+    let p = 0;
+    for (let i = 0; i < N; i++) {
+        rowPtr[i] = p;
+        const cols = colLists[i];
+        const vals = valLists[i];
+
+        // Create array of (col, val) pairs and sort by column index
+        const pairs = [];
+        for (let k = 0; k < cols.length; k++) {
+            pairs.push({ col: cols[k], val: vals[k] });
+        }
+        pairs.sort((a, b) => a.col - b.col);
+
+        // Write sorted data
+        for (let k = 0; k < pairs.length; k++) {
+            colIdx[p] = pairs[k].col;
+            values[p] = pairs[k].val;
+            p++;
+        }
+    }
+    rowPtr[N] = p;
+
+    return { rowPtr, colIdx, values };
+}
+
+// Store the initialized WASM module (singleton pattern)
+let WASMModuleInstance = null;
+
+async function solveWithWASM(csr, B, useLU = false) {
+    if (!WASMModuleInstance) {
+        // Initialize the module if it hasn't been already
+        WASMModuleInstance = await createWASMModule();
+    }
+
+    const N = B.length;
+    const nnz = csr.values.length;
+
+    const bytesNeeded = 10 * (12 * nnz + 20 * N);
+
+    if (bytesNeeded > 1e9) {
+      throw new Error(`Problem too large. Tried to allocate ${bytesNeeded/1e9} GB.`);
+    }
+
+    // Allocate memory
+    const pRow = WASMModuleInstance._malloc(4 * (N + 1));
+    const pCol = WASMModuleInstance._malloc(4 * nnz);
+    const pVal = WASMModuleInstance._malloc(8 * nnz);
+    const pB   = WASMModuleInstance._malloc(8 * N);
+    const pX   = WASMModuleInstance._malloc(8 * N);
+
+    try {
+        // Re-acquire HEAP views to ensure they are current in case memory grew
+        const currentHEAP32 = WASMModuleInstance.HEAP32;
+        const currentHEAPF64 = WASMModuleInstance.HEAPF64;
+
+        // Copy data - create views AFTER malloc
+        const rowView = new Int32Array(currentHEAP32.buffer, pRow, N + 1);
+        const colView = new Int32Array(currentHEAP32.buffer, pCol, nnz);
+        const valView = new Float64Array(currentHEAPF64.buffer, pVal, nnz);
+        const bView = new Float64Array(currentHEAPF64.buffer, pB, N);
+
+        rowView.set(csr.rowPtr);
+        colView.set(csr.colIdx);
+        valView.set(csr.values);
+        bView.set(B);
+
+        if (!WASMModuleInstance._solve_sparse) {
+            throw new Error("WASM function solve_sparse not found. Module not loaded properly.");
+        }
+
+        // Call solver
+        const status = WASMModuleInstance._solve_sparse(
+            N, nnz,
+            pRow, pCol, pVal,
+            pB, pX,
+            useLU ? 1 : 0
+        );
+
+        if (status !== 0) {
+            const errors = {
+                1: "LU decomposition failed",
+                2: "LU solving failed",
+                3: "Cholesky decomposition failed (matrix may not be positive definite)",
+                4: "Cholesky solving failed",
+                99: "Unknown C++ exception"
+            };
+            throw new Error(errors[status] || `WASM solver failed with code: ${status}`);
+        }
+
+        // Copy result
+        const xView = new Float64Array(WASMModuleInstance.HEAPF64.buffer, pX, N);
+        const x = new Float64Array(N);
+        x.set(xView);
+
+        return x;
+    } finally {
+        // Always free memory
+        WASMModuleInstance._free(pRow);
+        WASMModuleInstance._free(pCol);
+        WASMModuleInstance._free(pVal);
+        WASMModuleInstance._free(pB);
+        WASMModuleInstance._free(pX);
+    }
+}
+
+function isArrayLike2D(arr, ny, nx) {
+    if (!arr || typeof arr !== "object") return false;
+    if (arr.length !== ny) return false;
+
+    for (let i = 0; i < ny; i++) {
+        const row = arr[i];
+        if (!row || typeof row !== "object") return false;
+        if (typeof row.length !== "number") return false;
+        if (row.length !== nx) return false;
+    }
+    return true;
+}
+
+function validate_laplace_inputs(V, x, y, epsilon_r, conductor_mask, vacuum = false) {
+    const errors = [];
+
+    const ny = y.length;
+    const nx = x.length;
+
+    if (!isArrayLike2D(V, ny, nx)) {
+        errors.push("V must be a (ny, nx) 2D array matching mesh dimensions")
+    }
+
+    if (!isArrayLike2D(conductor_mask, ny, nx)) {
+        errors.push("conductor_mask must be a (ny, nx) 2D array matching mesh dimensions")
+    }
+
+    if (!vacuum && !isArrayLike2D(epsilon_r, ny, nx)) {
+        errors.push("epsilon_r must be a (ny, nx) 2D array matching mesh dimensions when vacuum=false")
+    }
+
+    const dx = diff(x);
+    const dy = diff(y);
+
+    const check_spacing = (d, name) => {
+        const min = Math.min(...d);
+        const max = Math.max(...d);
+
+        if (Number.isNaN(min)) {
+            errors.push(`NaN in ${name})`);
+        }
+        if (!(min > 1e-15)) {
+            errors.push(`${name}: min spacing <= 1e-15 (min=${min})`);
+        }
+        if (!(max / min < 1e12)) {
+            errors.push(`${name}: spacing ratio too large (max/min = ${max / min})`);
+        }
+    };
+
+    if (dx.length > 0) check_spacing(dx, "dx");
+    if (dy.length > 0) check_spacing(dy, "dy");
+
+    // Check for at least one conductor
+    let has_conductor = false;
+    for (let i = 0; i < ny && !has_conductor; i++) {
+        for (let j = 0; j < nx; j++) {
+            if (conductor_mask[i][j]) {
+                has_conductor = true;
+                break;
+            }
+        }
+    }
+    if (!has_conductor) {
+        errors.push("No conductor cells found in conductor_mask");
+    }
+
+    // V
+    for (let i = 0; i < ny; i++) {
+        for (let j = 0; j < nx; j++) {
+            const v = V[i][j];
+            if (!Number.isFinite(v)) {
+                errors.push(`V contains non-finite value at (${i}, ${j}): ${v}`);
+                break;
+            }
+        }
+    }
+
+    // epsilon_r
+    if (!vacuum) {
+        for (let i = 0; i < ny; i++) {
+            for (let j = 0; j < nx; j++) {
+                const er = epsilon_r[i][j];
+                if (!Number.isFinite(er)) {
+                    errors.push(`epsilon_r contains non-finite value at (${i}, ${j}): ${er}`);
+                    return errors;
+                }
+                if (!(er > 0)) {
+                    errors.push(`epsilon_r must be > 0 at (${i}, ${j}), got ${er}`);
+                    return errors;
+                }
+            }
+        }
+    }
+
+    return errors;
+}
+
+export class FieldSolver2D {
+    constructor() {
+        this.x = null;
+        this.y = null;
+        this.V = null;  // Stored as array: [V] for single-ended, [V_odd, V_even] for differential
+        this.epsilon_r = null;
+        this.tand = null;
+        this.conductor_mask = null; // 1 if conductor, 0 if dielectric
+        this.solution_valid = false;
+        this.use_causal_materials = true;
+
+        // Computed fields - stored as array: [fields] for single-ended, [odd, even] for differential
+        this.Ex = null;
+        this.Ey = null;
+    }
+
+    /**
+     * Create a voltage array based on conductor masks and solve mode.
+     * @param {string} mode - 'single', 'odd', or 'even'
+     * @returns {Array<Float64Array>} - 2D voltage array
+     */
+    _create_voltage_array(mode = 'single') {
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const V = Array(ny).fill().map(() => new Float64Array(nx));
+
+        for (let i = 0; i < ny; i++) {
+            for (let j = 0; j < nx; j++) {
+                if (this.ground_mask[i][j]) {
+                    V[i][j] = 0.0;
+                } else if (mode === 'odd' && this.is_differential) {
+                    // Odd mode: positive trace = +1V, negative trace = -1V
+                    if (this.signal_p_mask[i][j]) V[i][j] = 1.0;
+                    else if (this.signal_n_mask[i][j]) V[i][j] = -1.0;
+                } else if (mode === 'even' && this.is_differential) {
+                    // Even mode: both traces = +1V
+                    if (this.signal_mask[i][j]) V[i][j] = 1.0;
+                } else {
+                    // Single-ended: signal = +1V
+                    if (this.signal_mask[i][j]) V[i][j] = 1.0;
+                }
+            }
+        }
+        return V;
+    }
+
+    /**
+     * Solve Laplace equation for the given voltage array.
+     * @param {Array<Float64Array>} V - 2D voltage array with conductor boundary conditions set
+     * @param {boolean} vacuum - If true, solve with vacuum permittivity
+     * @param {function} onProgress - Optional progress callback
+     * @returns {Array<Float64Array>} - The solved voltage array (same reference as input)
+     */
+    async solve_laplace(V, vacuum = false, onProgress = null) {
+        // Ensure mesh is generated
+        if (this.ensure_mesh) {
+            this.ensure_mesh();
+        }
+
+        const errors = validate_laplace_inputs(
+                V,
+                this.x,
+                this.y,
+                this.epsilon_r,
+                this.conductor_mask,
+                vacuum
+            );
+
+        if (errors.length > 0) {
+                throw new Error(
+                    "Laplace solver input validation failed:\n" +
+                    errors.map(e => " - " + e).join("\n")
+                );
+            }
+
+        const ny = this.y.length, nx = this.x.length;
+        const dx = diff(this.x), dy = diff(this.y);
+        const N = nx * ny;
+        const idx = (i, j) => i * nx + j;
+
+        const get_er = (i, j) => vacuum ? 1.0 : this.epsilon_r[i][j];
+        const is_cond = (i, j) => this.conductor_mask[i][j];
+
+        // Remove mesh nodes internal to conductors
+        // E-field inside conductors is 0.
+        const is_unknown = new Int8Array(N);
+        let N_unknown = 0;
+
+        for (let i = 0; i < ny; i++)
+            for (let j = 0; j < nx; j++) {
+                const n = idx(i, j);
+                if (!is_cond(i, j)) {
+                    is_unknown[n] = 1;
+                    N_unknown++;
+                }
+            }
+
+        const full_to_red = new Int32Array(N).fill(-1);
+        const red_to_full = new Int32Array(N_unknown);
+
+        let k = 0;
+        for (let n = 0; n < N; n++) {
+            if (is_unknown[n]) {
+                full_to_red[n] = k;
+                red_to_full[k] = n;
+                k++;
+            }
+        }
+
+        // Build sparse system
+        const B = new Float64Array(N_unknown);
+        const diag = new Float64Array(N_unknown);
+
+        const colLists = Array(N_unknown);
+        const valLists = Array(N_unknown);
+
+        for (let i = 0; i < N_unknown; i++) {
+            colLists[i] = [];
+            valLists[i] = [];
+        }
+
+        const addA = (r, c, v) => {
+            colLists[r].push(c);
+            valLists[r].push(v);
+            if (r === c) diag[r] += v;
+        };
+
+        for (let i = 0; i < ny; i++) {
+            for (let j = 0; j < nx; j++) {
+                if (is_cond(i, j)) continue;
+
+                const fn = idx(i, j);
+                const n = full_to_red[fn];
+
+                const boundary =
+                    i === 0 || i === ny - 1 || j === 0 || j === nx - 1;
+
+                let dxr, dxl, dyu, dyd;
+                if (boundary) {
+                    dxr = j < nx - 1 ? dx[j] : dx[j - 1];
+                    dxl = j > 0 ? dx[j - 1] : dx[j];
+                    dyu = i < ny - 1 ? dy[i] : dy[i - 1];
+                    dyd = i > 0 ? dy[i - 1] : dy[i];
+                } else {
+                    dxr = dx[j];
+                    dxl = dx[j - 1];
+                    dyu = dy[i];
+                    dyd = dy[i - 1];
+                }
+
+                let err, erl, eru, erd;
+                if (vacuum) {
+                    err = erl = eru = erd = 1.0;
+                } else {
+                    const erc = get_er(i, j);
+                    if (boundary) {
+                        err = 0.5 * (erc + get_er(i, Math.min(j + 1, nx - 1)));
+                        erl = 0.5 * (erc + get_er(i, Math.max(j - 1, 0)));
+                        eru = 0.5 * (erc + get_er(Math.min(i + 1, ny - 1), j));
+                        erd = 0.5 * (erc + get_er(Math.max(i - 1, 0), j));
+                    } else {
+                        err = is_cond(i, j + 1) ? erc : 0.5 * (erc + get_er(i, j + 1));
+                        erl = is_cond(i, j - 1) ? erc : 0.5 * (erc + get_er(i, j - 1));
+                        eru = is_cond(i + 1, j) ? erc : 0.5 * (erc + get_er(i + 1, j));
+                        erd = is_cond(i - 1, j) ? erc : 0.5 * (erc + get_er(i - 1, j));
+                    }
+                }
+
+                const area_i = 0.5 * (dyd + dyu);
+                const area_j = 0.5 * (dxl + dxr);
+
+                let cr, cl, cu, cd;
+                if (boundary) {
+                    cr = j < nx - 1 ? -err * area_i / dxr : 0;
+                    cl = j > 0 ? -erl * area_i / dxl : 0;
+                    cu = i < ny - 1 ? -eru * area_j / dyu : 0;
+                    cd = i > 0 ? -erd * area_j / dyd : 0;
+                } else {
+                    cr = -err * area_i / dxr;
+                    cl = -erl * area_i / dxl;
+                    cu = -eru * area_j / dyu;
+                    cd = -erd * area_j / dyd;
+                }
+
+                const cc = -(cr + cl + cu + cd);
+                addA(n, n, cc);
+
+                const handle = (ii, jj, c) => {
+                    const fn2 = idx(ii, jj);
+                    if (!is_cond(ii, jj)) {
+                        addA(n, full_to_red[fn2], c);
+                    } else {
+                        B[n] -= c * V[ii][jj];
+                    }
+                };
+
+                if (j < nx - 1) handle(i, j + 1, cr);
+                if (j > 0) handle(i, j - 1, cl);
+                if (i < ny - 1) handle(i + 1, j, cu);
+                if (i > 0) handle(i - 1, j, cd);
+            }
+        }
+
+        const { rowPtr, colIdx, values } = buildCSR(colLists, valLists, N_unknown);
+        const csr = { rowPtr, colIdx, values };
+        const x = await solveWithWASM(csr, B, true);
+
+        // Reconstruct solution for full mesh
+        for (let k = 0; k < N_unknown; k++) {
+            const n = red_to_full[k];
+            const i = (n / nx) | 0;
+            const j = n % nx;
+            V[i][j] = x[k];
+        }
+
+        return V;
+    }
+
+    /**
+     * Compute E-field from voltage distribution.
+     * @param {Array<Float64Array>} V - 2D voltage array
+     * @returns {{Ex: Array<Float64Array>, Ey: Array<Float64Array>}} - E-field components
+     */
+    compute_fields(V) {
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const dx = diff(this.x);
+        const dy = diff(this.y);
+
+        const Ex = Array(ny).fill().map(() => new Float64Array(nx));
+        const Ey = Array(ny).fill().map(() => new Float64Array(nx));
+
+        for(let i=1; i<ny-1; i++) {
+            for(let j=1; j<nx-1; j++) {
+                if (this.conductor_mask[i][j]) continue;
+
+                const dxl = dx[j-1];
+                const dxr = dx[j];
+                const dyd = dy[i-1];
+                const dyu = dy[i];
+
+                Ex[i][j] = -(
+                    (dxl / (dxr * (dxl + dxr))) * V[i][j+1] +
+                    ((dxr - dxl) / (dxl * dxr)) * V[i][j] -
+                    (dxr / (dxl * (dxl + dxr))) * V[i][j-1]
+                );
+
+                Ey[i][j] = -(
+                    (dyd / (dyu * (dyd + dyu))) * V[i+1][j] +
+                    ((dyu - dyd) / (dyd * dyu)) * V[i][j] -
+                    (dyu / (dyd * (dyd + dyu))) * V[i-1][j]
+                );
+            }
+        }
+        this.solution_valid = true;
+        return { Ex, Ey };
+    }
+
+    /**
+     * Calculate capacitance from voltage distribution.
+     * @param {Array<Float64Array>} V - 2D voltage array
+     * @param {boolean} vacuum - If true, use vacuum permittivity
+     * @returns {number} - Capacitance in F/m
+     */
+    calculate_capacitance(V, vacuum=false) {
+        let Q = 0.0;
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const dx = diff(this.x);
+        const dy = diff(this.y);
+
+        const get_dx = j => j < dx.length ? dx[j] : dx[dx.length-1];
+        const get_dy = i => i < dy.length ? dy[i] : dy[dy.length-1];
+
+        // Iterate over signal trace interface
+        for (let i = 1; i < ny - 1; i++) {
+            for (let j = 1; j < nx - 1; j++) {
+                if (!this.signal_mask[i][j]) continue;
+
+                // Check 4 neighbors
+                const check_neighbor = (ni, nj, is_vertical_flux) => {
+                    // Only add flux if the neighbor is NOT part of the signal conductor
+                    if (this.signal_mask[ni][nj]) return;
+
+                    // E-field Normal
+                    let En;
+                    let dist;
+                    let area;
+
+                    if (is_vertical_flux) {
+                         // Neighbor is Top/Bottom
+                         dist = Math.abs(this.y[i] - this.y[ni]);
+                         En = (V[i][j] - V[ni][nj]) / dist;
+                         // Average dx for area
+                         area = (get_dx(j-1) + get_dx(j)) / 2;
+                    } else {
+                        // Neighbor is Left/Right
+                        dist = Math.abs(this.x[j] - this.x[nj]);
+                        En = (V[i][j] - V[ni][nj]) / dist;
+                        // Average dy for area
+                        area = (get_dy(i-1) + get_dy(i)) / 2;
+                    }
+
+                    const er = vacuum ? 1 : this.epsilon_r[ni][nj];
+                    Q += CONSTANTS.EPS0 * er * En * area;
+                };
+
+                // Right neighbor
+                if (!this.signal_mask[i][j + 1]) {
+                    check_neighbor(i, j + 1, false);
+                }
+                // Left neighbor
+                if (!this.signal_mask[i][j - 1]) {
+                    check_neighbor(i, j - 1, false);
+                }
+                // Top neighbor
+                if (!this.signal_mask[i + 1][j]) {
+                    check_neighbor(i + 1, j, true);
+                }
+                // Bottom neighbor
+                if (!this.signal_mask[i - 1][j]) {
+                    check_neighbor(i - 1, j, true);
+                }
+            }
+        }
+        return Math.abs(Q);
+    }
+
+    /**
+     * Calculate conductor cross-sectional area from conductor dimensions.
+     * Uses the Conductor class dimensions directly (width * height) rather than
+     * summing mesh elements for accurate DC resistance calculation.
+     *
+     * For differential mode, includes both signal traces in signal_area.
+     * Ground area includes all ground conductors (bottom, top, sides, vias).
+     *
+     * @returns {{signal_area: number, ground_area: number}} - Cross-sectional areas in m^2
+     */
+    _calculate_conductor_area() {
+        if (!this.conductors) {
+            throw new Error("Conductors array not available");
+        }
+
+        let signal_area = 0;
+        let ground_area = 0;
+
+        for (const cond of this.conductors) {
+            const area = Math.abs(cond.width * cond.height);
+            if (cond.is_signal) {
+                signal_area += area;
+            } else {
+                ground_area += area;
+            }
+        }
+
+        return { signal_area, ground_area };
+    }
+
+    /**
+     * Calculate conductor losses including both DC and AC (skin effect) contributions.
+     *
+     * The total resistance is calculated as R_total = sqrt(R_dc^2 + R_ac^2) where:
+     * - R_dc: DC resistance from conductor cross-sectional area
+     * - R_ac: AC resistance from skin effect and surface roughness
+     *
+     * @param {Array<Array<number>>} Ex - Electric field x-component
+     * @param {Array<Array<number>>} Ey - Electric field y-component
+     * @param {number} Z0 - Characteristic impedance (real part)
+     * @returns {{R_ac: number, R_dc: number, R_total: number, L_internal: number}}
+     */
+    calculate_conductor_loss(Ex, Ey, Z0) {
+        if (!this.solution_valid) throw new Error("Fields invalid");
+
+        const { signal_area, ground_area } = this._calculate_conductor_area();
+
+        // DC resistance per unit length for transmission line
+        // Current flows through signal conductor and returns through ground (series connection)
+        const R_signal = 1.0 / (this.sigma_cond * signal_area);
+        const R_ground = 1.0 / (this.sigma_cond * ground_area);
+        const R_dc = R_signal + R_ground;
+
+        // Handle DC case (frequency = 0)
+        if (this.freq === 0) {
+            return {
+                R_ac: 0,
+                R_dc: R_dc,
+                R_total: R_dc,
+                L_internal: 0
+            };
+        }
+
+        // Use roughness from constructor
+        const rq = this.rq || 0;
+
+        // Default surface impedance (no plating)
+        const Z_surf_default = calculate_Zrough(this.freq, this.sigma_cond, rq);
+
+        // Cache for per-conductor surface impedances to avoid redundant layered solves
+        // Key: "ci_surface" e.g. "3_top", value: Complex Z_surf
+        const Z_cache = new Map();
+
+        // Helper: check if a point is at a conductor corner
+        // Returns corner type: 'bottom-left', 'bottom-right', or null
+        const getCornerType = (i, j, ci, direction) => {
+            if (!this.conductors || ci < 0 || !this.conductor_id) return null;
+            const cond = this.conductors[ci];
+            if (!cond) return null;
+
+            // Only check for bottom corners (direction 'u' = bottom face)
+            if (direction !== 'u') return null;
+
+            // Check if there's also a horizontal neighbor with the same conductor
+            const has_left = (j > 0) && this.conductor_id[i] && this.conductor_id[i][j-1] === ci;
+            const has_right = (j < this.x.length - 1) && this.conductor_id[i] && this.conductor_id[i][j+1] === ci;
+
+            if (has_left) return 'bottom-left';
+            if (has_right) return 'bottom-right';
+            return null;
+        };
+
+        // Helper: get surface impedance for a conductor boundary segment
+        // Now with corner detection and geometric coverage from thick side plating
+        const getZsurf = (ci, direction, i, j, dl) => {
+            if (!this.conductors || ci < 0) return Z_surf_default;
+            const cond = this.conductors[ci];
+            if (!cond || !cond.plating) return Z_surf_default;
+
+            // Map direction to surface face:
+            // 'u' = dielectric is below conductor neighbor = conductor's BOTTOM face
+            // 'd' = dielectric is above conductor neighbor = conductor's TOP face
+            // 'l','r' = SIDE faces
+            let surface;
+            if (direction === 'd') surface = 'top';
+            else if (direction === 'u') surface = 'bottom';
+            else surface = 'sides';
+
+            // Geometric coverage from TOP plating extending down the sides
+            // If only top plating (not sides), plating extends down from top edge
+            // Uses fractional coverage for smooth parameter sweeps
+            if ((direction === 'l' || direction === 'r') && cond.plating.top && !cond.plating.sides) {
+                const t = cond.plating.thickness;
+                // Cell spans [y[i], y[i] + dl] in y-direction
+                const y_start = this.y[i];
+                const y_end = y_start + dl;
+                // Top plating covers [y_max - t, y_max]
+                const overlap = Math.max(0, Math.min(cond.y_max, y_end) - Math.max(cond.y_max - t, y_start));
+                const fraction = dl > 0 ? Math.min(overlap / dl, 1.0) : 0;
+
+                if (fraction > 0) {
+                    const key_top_side = `${ci}_top_side_plating`;
+                    let Z_plating;
+                    if (Z_cache.has(key_top_side)) {
+                        Z_plating = Z_cache.get(key_top_side);
+                    } else {
+                        Z_plating = calculate_Zrough(
+                            this.freq, cond.plating.sigma, cond.plating.rq
+                        );
+                        Z_cache.set(key_top_side, Z_plating);
+                    }
+
+                    if (fraction >= 1.0) return Z_plating;
+
+                    // Weighted average with bulk side impedance for uncovered part
+                    return new Complex(
+                        fraction * Z_plating.re + (1 - fraction) * Z_surf_default.re,
+                        fraction * Z_plating.im + (1 - fraction) * Z_surf_default.im
+                    );
+                }
+            }
+
+            // Geometric coverage of bottom surface by thick side plating
+            // Uses fractional coverage for smooth parameter sweeps
+            if (direction === 'u' && cond.plating.sides && !cond.plating.bottom && cond.plating.thick_corners) {
+                const t = cond.plating.thickness;
+                // Cell spans [x[j], x[j] + dl] in x-direction
+                const x_start = this.x[j];
+                const x_end = x_start + dl;
+                // Left side plating covers [x_min, x_min + t]
+                const left_overlap = Math.max(0, Math.min(cond.x_min + t, x_end) - Math.max(cond.x_min, x_start));
+                // Right side plating covers [x_max - t, x_max]
+                const right_overlap = Math.max(0, Math.min(cond.x_max, x_end) - Math.max(cond.x_max - t, x_start));
+                const fraction = dl > 0 ? Math.min((left_overlap + right_overlap) / dl, 1.0) : 0;
+
+                if (fraction > 0) {
+                    const key_corner = `${ci}_corner_plating`;
+                    let Z_plating;
+                    if (Z_cache.has(key_corner)) {
+                        Z_plating = Z_cache.get(key_corner);
+                    } else {
+                        // Side plating material with bulk surface roughness
+                        Z_plating = calculate_Zrough(
+                            this.freq, cond.plating.sigma, rq
+                        );
+                        Z_cache.set(key_corner, Z_plating);
+                    }
+
+                    if (fraction >= 1.0) return Z_plating;
+
+                    // Weighted average: covered part uses plating, rest uses bulk
+                    return new Complex(
+                        fraction * Z_plating.re + (1 - fraction) * Z_surf_default.re,
+                        fraction * Z_plating.im + (1 - fraction) * Z_surf_default.im
+                    );
+                }
+            }
+
+            // Check for bottom corner
+            const cornerType = getCornerType(i, j, ci, direction);
+
+            // At bottom corners with side plating enabled, use single-layer plating impedance
+            // This models plating extending from sides to bottom at corners
+            if (cornerType && cond.plating.sides && cond.plating.thick_corners) {
+                // Determine corner size (characteristic dimension)
+                const corner_size = Math.min(cond.width, Math.abs(cond.height)) / 10;
+
+                // Get corner plating impedance (single-layer, no bulk)
+                const key_corner = `${ci}_corner_plating`;
+                let Z_corner;
+                if (Z_cache.has(key_corner)) {
+                    Z_corner = Z_cache.get(key_corner);
+                } else {
+                    // At corners: single-layer with plating sigma and bulk rq
+                    // - sigma: plating material (extends from sides)
+                    // - rq: bulk surface roughness (bottom surface preparation)
+                    Z_corner = calculate_Zrough(
+                        this.freq, cond.plating.sigma, rq  // Use bulk rq, not plating.rq
+                    );
+                    Z_cache.set(key_corner, Z_corner);
+                }
+
+                // If mesh cell is small (pure corner region), use pure corner plating impedance
+                if (dl < corner_size) {
+                    return Z_corner;
+                }
+
+                // If mesh cell is large and includes both corner and bulk,
+                // average based on corner_size fraction
+                const corner_fraction = corner_size / dl;
+
+                // Get bottom surface impedance
+                let Z_bottom;
+                if (cond.plating.bottom) {
+                    const key_bottom = `${ci}_bottom`;
+                    if (Z_cache.has(key_bottom)) {
+                        Z_bottom = Z_cache.get(key_bottom);
+                    } else {
+                        Z_bottom = calculate_Zrough_layered(
+                            this.freq, this.sigma_cond,
+                            cond.plating.rq, cond.plating.sigma, cond.plating.thickness
+                        );
+                        Z_cache.set(key_bottom, Z_bottom);
+                    }
+                } else {
+                    Z_bottom = Z_surf_default;
+                }
+
+                // Weighted average: corner region uses corner plating impedance, bulk uses bottom impedance
+                const Z_avg_re = corner_fraction * Z_corner.re + (1 - corner_fraction) * Z_bottom.re;
+                const Z_avg_im = corner_fraction * Z_corner.im + (1 - corner_fraction) * Z_bottom.im;
+                return new Complex(Z_avg_re, Z_avg_im);
+            }
+
+            // Standard surface impedance (no corner effects)
+            if (!cond.plating[surface]) return Z_surf_default;
+
+            const key = `${ci}_${surface}`;
+            if (Z_cache.has(key)) return Z_cache.get(key);
+
+            const Z = calculate_Zrough_layered(
+                this.freq, this.sigma_cond,
+                cond.plating.rq, cond.plating.sigma, cond.plating.thickness
+            );
+            Z_cache.set(key, Z);
+            return Z;
+        };
+
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const dx_array = diff(this.x);
+        const dy_array = diff(this.y);
+
+        const get_dx = j => (j >= 0 && j < dx_array.length) ? dx_array[j] : dx_array[dx_array.length - 1];
+        const get_dy = i => (i >= 0 && i < dy_array.length) ? dy_array[i] : dy_array[dy_array.length - 1];
+
+        let sum_H2_dl_R = 0.0; // Sum for Resistance
+        let sum_H2_dl_L = 0.0; // Sum for Inductance
+
+        const isSignal = (i, j) => this.signal_mask[i][j];
+        const isGround = (i, j) => this.ground_mask[i][j];
+        const isConductor = (i, j) => isSignal(i,j) || isGround(i,j);
+
+        for (let i = 1; i < ny - 1; i++) {
+            for (let j = 1; j < nx - 1; j++) {
+                if (isConductor(i, j)) continue;
+
+                const neighbors = [
+                    { ni: i, nj: j + 1, direction: 'r', dl_func: get_dy, idx: i },
+                    { ni: i, nj: j - 1, direction: 'l', dl_func: get_dy, idx: i },
+                    { ni: i + 1, nj: j, direction: 'u', dl_func: get_dx, idx: j },
+                    { ni: i - 1, nj: j, direction: 'd', dl_func: get_dx, idx: j },
+                ];
+
+                for (const { ni, nj, direction, dl_func, idx: dl_idx } of neighbors) {
+                    if (ni < 0 || ni >= ny || nj < 0 || nj >= nx) continue;
+
+                    if (isConductor(ni, nj)) {
+                        const eps_diel = this.epsilon_r[i][j];
+                        const Ex_val = Ex[i][j];
+                        const Ey_val = Ey[i][j];
+
+                        let E_norm = 0.0;
+                        if (direction === 'r' || direction === 'l') E_norm = Math.abs(Ex_val);
+                        else E_norm = Math.abs(Ey_val);
+
+                        const Z0_freespace = 376.73;
+                        const H_tan = E_norm * Math.sqrt(eps_diel) / Z0_freespace;
+
+                        const dl = dl_func(dl_idx);
+                        const H2_dl = H_tan * H_tan * dl;
+
+                        // Look up per-surface impedance (with plating if applicable)
+                        const ci = this.conductor_id ? this.conductor_id[ni][nj] : -1;
+                        const Z_surf = getZsurf(ci, direction, i, j, dl);
+
+                        sum_H2_dl_R += Z_surf.re * H2_dl;
+                        sum_H2_dl_L += Z_surf.im * H2_dl;
+                    }
+                }
+            }
+        }
+
+        // Power normalization factor: differential has 0.5 factor
+        // This is because we integrate over both traces but report normalized loss
+        const power_factor = this.is_differential ? 0.5 : 1.0;
+
+        const Z0_sq = Z0 * Z0;
+
+        // AC Resistance per unit length from skin effect (Ohm/m)
+        const R_ac = power_factor * sum_H2_dl_R * Z0_sq;
+
+        // This doesn't hold if conductor thickness is smaller than skin depth
+        // Need to solve magnetic field for accurate L_internal at low frequency
+        // but is not a problem at even moderately high frequency >1 MHz.
+        // In practice very minimal error since DC can be solved correctly.
+        const L_internal = power_factor * sum_H2_dl_L * Z0_sq / (2 * Math.PI * this.freq);
+
+        const R_total = Math.sqrt(R_dc * R_dc + R_ac * R_ac);
+
+        return { R_ac, R_dc, R_total, L_internal };
+    }
+
+    calculate_dielectric_loss(Ex, Ey, Z0) {
+        if (!this.solution_valid) {
+            throw new Error("Fields (Ex, Ey) are not valid. Run compute_fields() first.");
+        }
+
+        // No dielectric loss at DC
+        // If material conductivity is implemented this is not true
+        if (this.freq === 0) {
+            return 0;
+        }
+
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const dx_array = diff(this.x);
+        const dy_array = diff(this.y);
+
+        const get_dx = j => (j >= 0 && j < dx_array.length) ? dx_array[j] : dx_array[dx_array.length - 1];
+        const get_dy = i => (i >= 0 && i < dy_array.length) ? dy_array[i] : dy_array[dy_array.length - 1];
+
+        // Helper function for conductor detection based on mode
+        const isConductor = this.is_differential
+            ? (i, j) => this.signal_p_mask[i][j] || this.signal_n_mask[i][j] || this.ground_mask[i][j]
+            : (i, j) => this.conductor_mask[i][j];
+
+        let Pd = 0.0;
+
+        for (let i = 0; i < ny - 1; i++) {
+            for (let j = 0; j < nx - 1; j++) {
+                if (isConductor(i, j)) continue;
+
+                const E2 = Ex[i][j] * Ex[i][j] + Ey[i][j] * Ey[i][j];
+                const dA = get_dx(j) * get_dy(i);
+
+                Pd += 0.5 * (2 * Math.PI * this.freq) * CONSTANTS.EPS0 * this.epsilon_r[i][j] * this.tand[i][j] * E2 * dA;
+            }
+        }
+
+        // Power normalization: differential has 0.5 factor
+        const power_factor = this.is_differential ? 0.5 : 1.0;
+        const P_flow = 1.0 / (2 * Z0);
+        return 8.686 * (power_factor * Pd / (2 * P_flow));
+    }
+
+    rlgc(R_total, L_internal, alpha_diel, C_mode, Z0_mode) {
+
+        // Dielectric loss conductance
+        const alpha_d_np = alpha_diel / 8.686;
+        // alpha_d = G * Z0 / 2  => G = 2 * alpha_d / Z0
+        const G = 2 * alpha_d_np / Z0_mode;
+
+        // External Inductance (Geometric)
+        const L_ext = (Z0_mode * Z0_mode) * C_mode;
+
+        // Total Inductance
+        const L_total = L_ext + L_internal;
+
+        // Handle DC case (frequency = 0)
+        if (this.freq === 0) {
+            // At DC, Zc = sqrt(R/G) = sqrt(R/0) = infinity
+            // For S-parameter calculations, use a very large impedance
+            const Zc = new Complex(1e12, 0);  // Effectively infinite impedance
+
+            // eps_eff at DC is calculated from C/C0
+            // From Z0 = 1/(c*sqrt(C*C0)), we get C0 = 1/(c^2*Z0^2*C)
+            // Therefore eps_eff = C/C0 = c^2 * Z0^2 * C^2
+            const c2 = CONSTANTS.C * CONSTANTS.C;
+            const eps_eff_dc = c2 * Z0_mode * Z0_mode * C_mode * C_mode;
+
+            return {
+                Zc: Zc,
+                rlgc: {
+                    R: R_total,
+                    L: L_total,
+                    G: G,
+                    C: C_mode
+                },
+                eps_eff_mode: eps_eff_dc,
+                L_internal: L_internal,
+                L_external: L_ext
+            };
+        }
+
+        // Re-calculate complex Zc and Epsilon_eff with the new L and R
+        const omega = 2 * Math.PI * this.freq;
+
+        // Zc = sqrt( (R + jwL) / (G + jwC) )
+        const Z_num = new Complex(R_total, omega * L_total);
+        const Z_den = new Complex(G, omega * C_mode);
+        const Zc = Z_num.div(Z_den).sqrt();
+
+        // Effective Permittivity
+        // gamma = sqrt( (R+jwL)(G+jwC) ) = alpha + j*beta
+        // beta = Im(gamma)
+        // eps_eff = (beta / k0)^2  where k0 = omega/c0
+        const gamma = Z_num.mul(Z_den).sqrt();
+        const beta = gamma.im;
+        const k0 = omega / 299792458.0;
+        const eps_eff_new = Math.pow(beta / k0, 2);
+
+        return {
+            Zc: Zc,
+            rlgc: {
+                R: R_total,
+                L: L_total,
+                G: G,
+                C: C_mode
+            },
+            eps_eff_mode: eps_eff_new,
+            L_internal: L_internal,
+            L_external: L_ext
+        };
+    }
+
+    async perform_analysis(onProgress = null) {
+        const totalSteps = 2; // Two main solve_laplace calls
+        let currentStep = 0;
+
+        const updateProgress = (stepFraction, overallStep) => {
+            if (onProgress) {
+                const totalProgress = ((overallStep - 1) / totalSteps) + (stepFraction / totalSteps);
+                onProgress(totalProgress);
+            }
+        };
+
+        // 1. Calculate C0 (vacuum capacitance)
+        currentStep = 1;
+        let V = this._create_voltage_array('single');
+        V = await this.solve_laplace(V, true, (i, max) => updateProgress(i / max, currentStep));
+        const C0 = this.calculate_capacitance(V, true);
+
+        // 2. Calculate C (with dielectric capacitance)
+        currentStep = 2;
+        V = this._create_voltage_array('single');
+        V = await this.solve_laplace(V, false, (i, max) => updateProgress(i / max, currentStep));
+        const C_with_diel = this.calculate_capacitance(V, false);
+
+        // 3. Calculate Z0 and effective permittivity
+        const eps_eff = C_with_diel / C0;
+        const Z0 = 1 / (CONSTANTS.C * Math.sqrt(C_with_diel * C0));
+
+        // 4. Compute fields Ex, Ey
+        const { Ex, Ey } = this.compute_fields(V);
+
+        // 5. Calculate losses
+        // Conductor loss with surface roughness and DC resistance
+        const { R_ac, R_dc, R_total, L_internal } = this.calculate_conductor_loss(Ex, Ey, Z0);
+
+        // Dielectric loss depends on Ex, Ey, Z0, omega, epsilon_r, tan_delta
+        const alpha_diel_db_m = this.calculate_dielectric_loss(Ex, Ey, Z0);
+
+        // 6. Calculate RLGC and complex Z0
+        const { Zc, rlgc, eps_eff_mode } = this.rlgc(R_total, L_internal, alpha_diel_db_m, C_with_diel, Z0);
+
+        // Calculate conductor loss alpha from R_total for reporting
+        const alpha_cond_db_m = 8.686 * R_total / (2 * Z0);
+        const total_alpha_db_m = alpha_cond_db_m + alpha_diel_db_m;
+
+        return {
+            Z0: Z0, // Characteristic Impedance (static approximation)
+            Zc: Zc, // Complex Characteristic Impedance (includes loss)
+            eps_eff: eps_eff,
+            RLGC: rlgc,
+            alpha_cond_db_m: alpha_cond_db_m,
+            alpha_diel_db_m: alpha_diel_db_m,
+            total_alpha_db_m: total_alpha_db_m,
+            V: V,  // Return V for storage
+            Ex: Ex,
+            Ey: Ey
+        };
+    }
+
+    // Adaptive Meshing
+    _compute_refine_metrics(V, Ex, Ey) {
+        /**
+         * For each grid interval, compute a metric indicating how much refinement
+         * would help, based on voltage gradients and field energy in adjacent cells.
+         */
+        const ny = V.length;
+        const nx = V[0].length;
+
+        // Metric for splitting interval [x[j], x[j+1]]
+        const x_metrics = new Float64Array(this.x.length - 1);
+        // Metric for splitting interval [y[i], y[i+1]]
+        const y_metrics = new Float64Array(this.y.length - 1);
+
+        for (let i = 0; i < ny - 1; i++) {
+            for (let j = 0; j < nx - 1; j++) {
+                // Skip cells fully inside conductors
+                if (this.conductor_mask[i][j] &&
+                    this.conductor_mask[Math.min(i + 1, ny - 1)][j] &&
+                    this.conductor_mask[i][Math.min(j + 1, nx - 1)]) {
+                    continue;
+                }
+
+                const eps = this.epsilon_r[i][j];
+
+                // Voltage differences across this cell
+                const dV_x = j < nx - 1 ? Math.abs(V[i][j + 1] - V[i][j]) : 0;
+                const dV_y = i < ny - 1 ? Math.abs(V[i + 1][j] - V[i][j]) : 0;
+
+                // Field magnitude for weighting
+                const E2 = Ex[i][j] ** 2 + Ey[i][j] ** 2;
+                const E_mag = E2 > 0 ? Math.sqrt(E2) : 1e-12;
+
+                // Boundary detection
+                const is_boundary = (!this.conductor_mask[i][j] && (
+                    (i > 0 && this.conductor_mask[i - 1][j]) ||
+                    (i < ny - 1 && this.conductor_mask[i + 1][j]) ||
+                    (j > 0 && this.conductor_mask[i][j - 1]) ||
+                    (j < nx - 1 && this.conductor_mask[i][j + 1])));
+                const boundary_mult = is_boundary ? 2.0 : 1.0;
+
+                // Weight by field strength, permittivity, and boundary importance
+                const weight = E_mag * eps * boundary_mult;
+
+                // Accumulate to the interval metrics
+                if (j < x_metrics.length) {
+                    x_metrics[j] += dV_x * weight;
+                }
+                if (i < y_metrics.length) {
+                    y_metrics[i] += dV_y * weight;
+                }
+            }
+        }
+
+        return { x_metrics, y_metrics };
+    }
+
+    _check_symmetry(coords, center, tol = 1e-10) {
+        /**
+         * Check if coordinate array is symmetric about center.
+         */
+        const n = coords.length;
+        for (let k = 0; k < Math.floor(n / 2); k++) {
+            const left = coords[k];
+            const right = coords[n - 1 - k];
+            if (Math.abs((left - center) + (right - center)) > tol) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    _symmetrize_metrics(metrics) {
+        /**
+         * Average metrics for symmetric pairs.
+         */
+        const n = metrics.length;
+        const result = new Float64Array(n);
+        for (let k = 0; k < n; k++) {
+            result[k] = metrics[k];
+        }
+        for (let k = 0; k < Math.floor(n / 2); k++) {
+            const avg = 0.5 * (metrics[k] + metrics[n - 1 - k]);
+            result[k] = avg;
+            result[n - 1 - k] = avg;
+        }
+        return result;
+    }
+
+    _select_lines_to_refine(x_metrics, y_metrics, frac = 0.15) {
+        /**
+         * Select which grid intervals to split, respecting left-right symmetry.
+         */
+        const x_center = (this.x[0] + this.x[this.x.length - 1]) / 2;
+        const x_symmetric = this._check_symmetry(this.x, x_center);
+
+        let x_metrics_proc = x_metrics;
+        if (x_symmetric) {
+            x_metrics_proc = this._symmetrize_metrics(x_metrics);
+        }
+
+        // Decide how many x vs y lines based on relative total metric
+        let total_x = 0;
+        let total_y = 0;
+        for (let i = 0; i < x_metrics_proc.length; i++) total_x += x_metrics_proc[i];
+        for (let i = 0; i < y_metrics.length; i++) total_y += y_metrics[i];
+        const total = total_x + total_y;
+
+        if (total < 1e-15) {
+            return { selected_x: new Set(), selected_y: new Set() };
+        }
+
+        let n_total = Math.floor(frac * (x_metrics_proc.length + y_metrics.length));
+        n_total = Math.max(1, n_total);
+
+        // Allocate proportionally to where the error is
+        const n_x = Math.floor(n_total * total_x / total);
+        const n_y = n_total - n_x;
+
+        // Select top intervals
+        const x_ranked = Array.from(x_metrics_proc.keys()).sort((a, b) => x_metrics_proc[b] - x_metrics_proc[a]);
+        const y_ranked = Array.from(y_metrics.keys()).sort((a, b) => y_metrics[b] - y_metrics[a]);
+
+        const selected_x = new Set();
+        const selected_y = new Set();
+
+        for (let idx = 0; idx < Math.min(n_x, x_ranked.length); idx++) {
+            const j = x_ranked[idx];
+            if (x_metrics_proc[j] > 0) {
+                selected_x.add(j);
+                if (x_symmetric) {
+                    const partner = x_metrics_proc.length - 1 - j;
+                    if (partner >= 0 && partner < x_metrics_proc.length) {
+                        selected_x.add(partner);
+                    }
+                }
+            }
+        }
+
+        for (let idx = 0; idx < Math.min(n_y, y_ranked.length); idx++) {
+            const i = y_ranked[idx];
+            if (y_metrics[i] > 0) {
+                selected_y.add(i);
+            }
+        }
+
+        return { selected_x, selected_y };
+    }
+
+    _refine_selected_lines(selected_x, selected_y) {
+        /**
+         * Add new grid lines at midpoints of selected intervals.
+         */
+        const x_center = (this.x[0] + this.x[this.x.length - 1]) / 2;
+        const x_symmetric = this._check_symmetry(this.x, x_center);
+
+        const new_x = new Set();
+        const new_y = new Set();
+
+        for (const j of selected_x) {
+            const midpoint = 0.5 * (this.x[j] + this.x[j + 1]);
+
+            // Ensure symmetry by only considering the left side.
+            if (x_symmetric) {
+                if (midpoint <= x_center) {
+                    new_x.add(midpoint);
+                    const symmetric_point = 2 * x_center - midpoint;
+                    if (symmetric_point > this.x[0] && symmetric_point < this.x[this.x.length - 1]) {
+                        new_x.add(symmetric_point);
+                    }
+                }
+            } else {
+                new_x.add(midpoint);
+            }
+        }
+
+        for (const i of selected_y) {
+            const midpoint = 0.5 * (this.y[i] + this.y[i + 1]);
+            new_y.add(midpoint);
+        }
+
+        // Merge and sort
+        const all_x = new Set([...this.x, ...new_x]);
+        const all_y = new Set([...this.y, ...new_y]);
+
+        this.x = Float64Array.from([...all_x].sort((a, b) => a - b));
+        this.y = Float64Array.from([...all_y].sort((a, b) => a - b));
+    }
+
+    refine_mesh(V, Ex, Ey, frac = 0.15) {
+        /**
+         * Main mesh refinement routine.
+         */
+        const { x_metrics, y_metrics } = this._compute_refine_metrics(V, Ex, Ey);
+        const { selected_x, selected_y } = this._select_lines_to_refine(x_metrics, y_metrics, frac);
+        this._refine_selected_lines(selected_x, selected_y);
+
+        // Invalidate solution since mesh has changed
+        this.solution_valid = false;
+        this.Ex = null;
+        this.Ey = null;
+    }
+
+    refine_mesh_multi(modes, frac = 0.15) {
+        /**
+         * Mesh refinement using combined metrics from multiple modes.
+         * Each mode's metrics are normalized to equal total weight before summing
+         * so that a mode with weaker absolute fields (e.g. even mode) still gets
+         * equal refinement budget relative to the dominant odd mode.
+         */
+        const nx_intervals = this.x.length - 1;
+        const ny_intervals = this.y.length - 1;
+        const x_combined = new Float64Array(nx_intervals);
+        const y_combined = new Float64Array(ny_intervals);
+
+        for (const { V, Ex, Ey } of modes) {
+            const { x_metrics, y_metrics } = this._compute_refine_metrics(V, Ex, Ey);
+            const total = x_metrics.reduce((s, v) => s + v, 0) +
+                          y_metrics.reduce((s, v) => s + v, 0);
+            const scale = total > 0 ? 1 / total : 1;
+            for (let j = 0; j < nx_intervals; j++) x_combined[j] += x_metrics[j] * scale;
+            for (let i = 0; i < ny_intervals; i++) y_combined[i] += y_metrics[i] * scale;
+        }
+
+        const { selected_x, selected_y } = this._select_lines_to_refine(x_combined, y_combined, frac);
+        this._refine_selected_lines(selected_x, selected_y);
+
+        this.solution_valid = false;
+        this.Ex = null;
+        this.Ey = null;
+    }
+
+    _compute_energy_error(Ex, Ey, prev_energy) {
+        /**
+         * Compute relative change in stored electromagnetic energy.
+         */
+        const ny = this.y.length;
+        const nx = this.x.length;
+        const dx_array = diff(this.x);
+        const dy_array = diff(this.y);
+
+        let energy = 0.0;
+        for (let i = 0; i < ny - 1; i++) {
+            for (let j = 0; j < nx - 1; j++) {
+                if (this.conductor_mask[i][j]) {
+                    continue;
+                }
+
+                const E2 = Ex[i][j] ** 2 + Ey[i][j] ** 2;
+                const dA = dx_array[j] * dy_array[i];
+                energy += 0.5 * CONSTANTS.EPS0 * this.epsilon_r[i][j] * E2 * dA;
+            }
+        }
+
+        if (prev_energy === null || prev_energy === undefined) {
+            return { energy, rel_error: 1.0 };
+        }
+
+        const rel_error = Math.abs(energy - prev_energy) / Math.max(Math.abs(prev_energy), 1e-12);
+        return { energy, rel_error };
+    }
+
+    _compute_parameter_error(Z0, C, prev_Z0, prev_C) {
+        /**
+         * Track convergence of Z0 and C parameters.
+         */
+        if (prev_Z0 === null) {
+            return 1.0;
+        }
+
+        const z_err = Math.abs(Z0 - prev_Z0) / Math.max(Math.abs(prev_Z0), 1e-12);
+        const c_err = Math.abs(C - prev_C) / Math.max(Math.abs(prev_C), 1e-12);
+        return Math.max(z_err, c_err);
+    }
+
+    async _solve_single_mode(mode, vacuum_first = true) {
+        /**
+         * Solve a single mode and return full results.
+         *
+         * Parameters:
+         * -----------
+         * mode : string - 'single', 'odd', or 'even'
+         * vacuum_first : boolean - Whether to solve vacuum case first for C0 calculation
+         *
+         * Returns:
+         * --------
+         * {mode, Z0, eps_eff, C, C0, RLGC, Zc, alpha_c, alpha_d, alpha_total, V, Ex, Ey}
+         */
+        let C0;
+        let V;
+
+        if (vacuum_first) {
+            // Calculate C0 (vacuum capacitance)
+            V = this._create_voltage_array(mode);
+            V = await this.solve_laplace(V, true);
+
+            if (this.is_differential) {
+                // Average the charge over both traces. For an asymmetric pair
+                // (e.g.  broadside stripline with unequal top/bottom dielectric
+                // heights) the two traces carry different charge.  For
+                // a symmetric pair the two are equal, so the average is
+                // unchanged.
+                const orig_signal_mask = this.signal_mask;
+                this.signal_mask = this.signal_p_mask;
+                const Cp = this.calculate_capacitance(V, true);
+                this.signal_mask = this.signal_n_mask;
+                const Cn = this.calculate_capacitance(V, true);
+                this.signal_mask = orig_signal_mask;
+                C0 = 0.5 * (Cp + Cn);
+            } else {
+                C0 = this.calculate_capacitance(V, true);
+            }
+        }
+
+        // Solve with dielectric
+        V = this._create_voltage_array(mode);
+        V = await this.solve_laplace(V, false);
+
+        let C;
+        if (this.is_differential) {
+            // Average the charge over both traces (see C0 above) — correct for asymmetric
+            // differential pairs, unchanged for symmetric ones.
+            const orig_signal_mask = this.signal_mask;
+            this.signal_mask = this.signal_p_mask;
+            const Cp = this.calculate_capacitance(V, false);
+            this.signal_mask = this.signal_n_mask;
+            const Cn = this.calculate_capacitance(V, false);
+            this.signal_mask = orig_signal_mask;
+            C = 0.5 * (Cp + Cn);
+        } else {
+            C = this.calculate_capacitance(V, false);
+        }
+
+        // Calculate fields
+        const { Ex, Ey } = this.compute_fields(V);
+
+        // Calculate impedance
+        let eps_eff, Z0;
+        if (C0 !== undefined) {
+            eps_eff = C / C0;
+            Z0 = 1 / (CONSTANTS.C * Math.sqrt(C * C0));
+        }
+
+        // Calculate conductor losses with surface roughness and DC resistance
+        const { R_ac, R_dc, R_total, L_internal } = this.calculate_conductor_loss(Ex, Ey, Z0);
+
+        // Calculate dielectric loss (returns alpha in dB/m)
+        const alpha_d = this.calculate_dielectric_loss(Ex, Ey, Z0);
+
+        // Calculate RLGC using new surface roughness aware approach
+        const { Zc, rlgc, eps_eff_mode, L_external } = this.rlgc(R_total, L_internal, alpha_d, C, Z0);
+
+        // Calculate conductor loss alpha from R_total for reporting
+        const alpha_c = 8.686 * R_total / (2 * Zc.re);
+        const alpha_total = alpha_c + alpha_d;
+
+        return {
+            mode,
+            Z0,
+            eps_eff: eps_eff_mode,
+            C, C0,
+            RLGC: rlgc, Zc,
+            alpha_c, alpha_d, alpha_total,
+            L_internal, L_external,
+            V, Ex, Ey
+        };
+    }
+
+    async solve_adaptive(options = {}) {
+        /**
+         * Adaptive mesh solve with robust convergence criteria.
+         * Automatically handles both single-ended and differential modes.
+         *
+         * Options:
+         * --------
+         * skip_mesh: boolean - If true, skip mesh refinement (use existing mesh)
+         *
+         * Returns:
+         * --------
+         * {
+         *   modes: [{mode, Z0, eps_eff, C, C0, RLGC, Zc, alpha_c, alpha_d, alpha_total, V, Ex, Ey}, ...],
+         *   Z_diff: (only for differential) 2 * Z_odd,
+         *   Z_common: (only for differential) Z_even / 2,
+         *   RLGC_matrix: (only for differential) {
+         *     R: [[R11, R12], [R21, R22]],  // Resistance matrix (Ohm/m)
+         *     L: [[L11, L12], [L21, L22]],  // Inductance matrix (H/m)
+         *     G: [[G11, G12], [G21, G22]],  // Conductance matrix (S/m)
+         *     C: [[C11, C12], [C21, C22]]   // Capacitance matrix (F/m)
+         *   }
+         * }
+         *
+         * Note: For differential pairs, RLGC_matrix represents the physical 2x2 per-unit-length
+         * parameter matrices relating the voltages and currents on the two traces. The diagonal
+         * elements (11, 22) are self-parameters, and off-diagonal elements (12, 21) are mutual
+         * coupling parameters. For L and C, coupling terms are negative.
+         */
+        // Ensure mesh is generated
+        if (this.ensure_mesh) {
+            this.ensure_mesh();
+        }
+
+        const {
+            max_iters = 10,
+            refine_frac,
+            energy_tol = 0.01,
+            param_tol = 0.1,
+            max_nodes = 20000,
+            min_converged_passes = 1,
+            onProgress = null,
+            shouldStop = null,
+            skip_mesh = false
+        } = options;
+
+        // If skip_mesh is true, just solve once with existing mesh
+        if (skip_mesh) {
+            const modeNames = this.is_differential ? ['odd', 'even'] : ['single'];
+            const modeResults = [];
+            for (const modeName of modeNames) {
+                const result = await this._solve_single_mode(modeName, true);
+                modeResults.push(result);
+            }
+            // Store fields as arrays
+            this.V = modeResults.map(r => r.V);
+            this.Ex = modeResults.map(r => r.Ex);
+            this.Ey = modeResults.map(r => r.Ey);
+            return this._build_results(modeResults);
+        }
+
+        // Set default refine_frac based on mode
+        const refineFrac = refine_frac !== undefined ? refine_frac : (this.is_differential ? 0.15 : 0.2);
+
+        // Define modes to solve
+        const modeNames = this.is_differential ? ['odd', 'even'] : ['single'];
+
+        // Tracking variables for convergence
+        const prevEnergy = {};
+        const prevZ0 = {};
+        let converged_count = 0;
+        let modeResults = null;
+
+        for (let it = 0; it < max_iters; it++) {
+            // Solve all modes
+            modeResults = [];
+            for (const modeName of modeNames) {
+                const result = await this._solve_single_mode(modeName, true);
+                modeResults.push(result);
+            }
+
+            // Compute max errors across all modes
+            let max_energy_err = 0;
+            let max_param_err = 0;
+
+            for (let i = 0; i < modeNames.length; i++) {
+                const modeName = modeNames[i];
+                const r = modeResults[i];
+
+                const { energy, rel_error: energy_err } = this._compute_energy_error(r.Ex, r.Ey, prevEnergy[modeName]);
+
+                const param_err = prevZ0[modeName] !== undefined
+                    ? Math.abs(r.Z0 - prevZ0[modeName]) / Math.max(Math.abs(prevZ0[modeName]), 1e-12)
+                    : 1.0;
+
+                max_energy_err = Math.max(max_energy_err, energy_err);
+                max_param_err = Math.max(max_param_err, param_err);
+
+                prevEnergy[modeName] = energy;
+                prevZ0[modeName] = r.Z0;
+            }
+
+            // Call progress callback
+            if (onProgress) {
+                onProgress({
+                    iteration: it + 1,
+                    max_iterations: max_iters,
+                    energy_error: max_energy_err,
+                    param_error: max_param_err,
+                    nodes_x: this.x.length,
+                    nodes_y: this.y.length
+                });
+            }
+
+            // Yield to event loop to allow UI updates
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Check convergence
+            const hasPrevious = Object.keys(prevZ0).length === modeNames.length &&
+                                Object.values(prevZ0).every(v => v !== undefined);
+            if (hasPrevious && it > 0) {
+                if (max_energy_err < energy_tol && max_param_err < param_tol) {
+                    converged_count++;
+                    if (converged_count >= min_converged_passes) {
+                        console.log(`Converged after ${it + 1} passes`);
+                        break;
+                    }
+                } else {
+                    converged_count = 0;
+                }
+            }
+
+            // Node budget check
+            if (this.x.length * this.y.length > max_nodes) {
+                console.log("Node budget reached");
+                break;
+            }
+
+            // Check if stop was requested
+            if (shouldStop && shouldStop()) {
+                console.log("Adaptive solve stopped by user");
+                break;
+            }
+
+            // Refine mesh using combined fields from all modes so that regions
+            // important for any mode (e.g. even mode near ground planes) get refined.
+            if (it !== max_iters - 1) {
+                if (modeResults.length > 1) {
+                    this.refine_mesh_multi(modeResults, refineFrac);
+                } else {
+                    const refineMode = modeResults[0];
+                    this.refine_mesh(refineMode.V, refineMode.Ex, refineMode.Ey, refineFrac);
+                }
+                this._setup_geometry();
+            }
+        }
+
+        // Store fields as arrays
+        this.V = modeResults.map(r => r.V);
+        this.Ex = modeResults.map(r => r.Ex);
+        this.Ey = modeResults.map(r => r.Ey);
+
+        // Build unified result structure
+        return this._build_results(modeResults);
+    }
+
+    _modal_to_physical_rlgc(odd, even) {
+        /**
+         * Convert modal (odd/even) RLGC parameters to physical 2x2 RLGC matrices.
+         *
+         * For a differential pair with two traces (left and right), the physical
+         * RLGC matrices relate the voltages and currents on each trace:
+         *
+         *   V1 = Z11*I1 + Z12*I2  (per unit length)
+         *   V2 = Z21*I1 + Z22*I2
+         *
+         * The transformation from modal to physical domain is:
+         *   Self terms (diagonal):     X11 = X22 = (X_odd + X_even) / 2
+         *   Mutual terms (off-diag):   X12 = X21 = (X_even - X_odd) / 2
+         *
+         * where X represents R, L, G, or C.
+         *
+         * Physical interpretation:
+         * - Odd mode: traces driven with opposite polarity (differential excitation)
+         * - Even mode: traces driven with same polarity (common-mode excitation)
+         *
+         * Note: Coupling terms (off-diagonal) are NEGATIVE for L and C because:
+         * - L_even > L_odd (same-direction currents create more inductance)
+         * - C_even < C_odd (opposite charges reduce capacitance)
+         * Therefore: L12 = (L_even - L_odd)/2 > 0 (positive mutual inductance)
+         *           C12 = (C_even - C_odd)/2 < 0 (negative mutual capacitance)
+         *
+         * @param {object} odd - Odd mode results with RLGC
+         * @param {object} even - Even mode results with RLGC
+         * @returns {object} - Physical 2x2 matrices { R, L, G, C }
+         */
+        const R_odd = odd.RLGC.R;
+        const R_even = even.RLGC.R;
+        const L_odd = odd.RLGC.L;
+        const L_even = even.RLGC.L;
+        const G_odd = odd.RLGC.G;
+        const G_even = even.RLGC.G;
+        const C_odd = odd.RLGC.C;
+        const C_even = even.RLGC.C;
+
+        // Transform to physical domain
+        const R11 = (R_odd + R_even) / 2;
+        const R22 = R11;
+        const R12 = (R_even - R_odd) / 2;
+        const R21 = R12;
+
+        const L11 = (L_odd + L_even) / 2;
+        const L22 = L11;
+        const L12 = (L_even - L_odd) / 2;
+        const L21 = L12;
+
+        const G11 = (G_odd + G_even) / 2;
+        const G22 = G11;
+        const G12 = (G_even - G_odd) / 2;
+        const G21 = G12;
+
+        const C11 = (C_odd + C_even) / 2;
+        const C22 = C11;
+        const C12 = (C_even - C_odd) / 2;
+        const C21 = C12;
+
+        return {
+            R: [[R11, R12], [R21, R22]],
+            L: [[L11, L12], [L21, L22]],
+            G: [[G11, G12], [G21, G22]],
+            C: [[C11, C12], [C21, C22]]
+        };
+    }
+
+    _build_results(modeResults) {
+        /**
+         * Build the unified result structure from mode results.
+         */
+        const result = { modes: modeResults };
+
+        if (this.is_differential) {
+            const odd = modeResults.find(m => m.mode === 'odd');
+            const even = modeResults.find(m => m.mode === 'even');
+            result.Z_diff = 2 * odd.Z0;
+            result.Z_common = even.Z0 / 2;
+
+            // Add physical 2x2 RLGC matrix
+            result.RLGC_matrix = this._modal_to_physical_rlgc(odd, even);
+        }
+
+        return result;
+    }
+
+    /**
+     * Perform a frequency sweep with automatic mesh generation at optimal frequency.
+     * This is the recommended single-entry-point API for frequency sweeps.
+     *
+     * @param {object} options - Sweep configuration
+     * @param {number[]} options.frequencies - Array of frequencies in Hz
+     * @param {number} [options.energy_tol=0.02] - Energy convergence tolerance for adaptive mesh
+     * @param {number} [options.max_nodes=20000] - Maximum mesh nodes
+     * @param {function} [options.onProgress] - Progress callback
+     * @param {function} [options.shouldStop] - Stop check callback
+     * @returns {Promise<object>} - Results organized for plotting:
+     *   {
+     *     frequencies: [...],
+     *     modes: [{
+     *       mode: 'single'|'odd'|'even',
+     *       Z0: [...], Zc_re: [...], Zc_im: [...],
+     *       eps_eff: [...],
+     *       alpha_c: [...], alpha_d: [...], alpha_total: [...],
+     *       RLGC: { R: [...], L: [...], G: [...], C: [...] },  // modal parameters
+     *       C: number, C0: number  // static values
+     *     }, ...],
+     *     Z_diff: [...],    // differential only
+     *     Z_common: [...],  // differential only
+     *     RLGC_matrix: {    // differential only - physical 2x2 matrices
+     *       R: { R11: [...], R12: [...], R21: [...], R22: [...] },
+     *       L: { L11: [...], L12: [...], L21: [...], L22: [...] },
+     *       G: { G11: [...], G12: [...], G21: [...], G22: [...] },
+     *       C: { C11: [...], C12: [...], C21: [...], C22: [...] }
+     *     },
+     *     mesh: { nx, ny }
+     *   }
+     */
+    async solve_sweep(options = {}) {
+        const {
+            frequencies,
+            energy_tol = 0.02,
+            max_nodes = 20000,
+            onProgress = null,
+            shouldStop = null
+        } = options;
+
+        // Validate frequencies
+        if (!frequencies || !Array.isArray(frequencies) || frequencies.length === 0) {
+            throw new Error('frequencies must be a non-empty array');
+        }
+
+        // Sort frequencies and find max for optimal meshing
+        const sortedFreqs = [...frequencies].sort((a, b) => a - b);
+        const maxFreq = sortedFreqs[sortedFreqs.length - 1];
+
+        // Set frequency to max for finest skin depth mesh
+        this.freq = maxFreq;
+
+        // Force mesh regeneration
+        this.mesh_generated = false;
+
+        // Generate mesh and run adaptive refinement
+        if (this.ensure_mesh) {
+            this.ensure_mesh();
+        }
+
+        const initResult = await this.solve_adaptive({
+            energy_tol,
+            max_nodes,
+            onProgress,
+            shouldStop
+        });
+
+        // Initialize result arrays
+        const modeNames = this.is_differential ? ['odd', 'even'] : ['single'];
+        const resultModes = modeNames.map(modeName => {
+            const initMode = initResult.modes.find(m => m.mode === modeName);
+            return {
+                mode: modeName,
+                Z0: [],
+                Zc_re: [],
+                Zc_im: [],
+                eps_eff: [],
+                alpha_c: [],
+                alpha_d: [],
+                alpha_total: [],
+                RLGC: { R: [], L: [], G: [], C: [] },
+                C: initMode.C,
+                C0: initMode.C0
+            };
+        });
+
+        const result = {
+            frequencies: [],
+            modes: resultModes,
+            mesh: { nx: this.x.length, ny: this.y.length }
+        };
+
+        if (this.is_differential) {
+            result.Z_diff = [];
+            result.Z_common = [];
+            // Initialize RLGC_matrix arrays for 2x2 physical matrices
+            result.RLGC_matrix = {
+                R: { R11: [], R12: [], R21: [], R22: [] },
+                L: { L11: [], L12: [], L21: [], L22: [] },
+                G: { G11: [], G12: [], G21: [], G22: [] },
+                C: { C11: [], C12: [], C21: [], C22: [] }
+            };
+        }
+
+        // Compute at each frequency
+        for (const freq of sortedFreqs) {
+            const freqResult = await this.computeAtFrequency(freq, initResult);
+
+            result.frequencies.push(freq);
+
+            // Extract mode results
+            for (let i = 0; i < modeNames.length; i++) {
+                const modeName = modeNames[i];
+                const modeResult = freqResult.modes.find(m => m.mode === modeName);
+                const outMode = resultModes[i];
+
+                outMode.Z0.push(modeResult.Z0);
+                outMode.Zc_re.push(modeResult.Zc.re);
+                outMode.Zc_im.push(modeResult.Zc.im);
+                outMode.eps_eff.push(modeResult.eps_eff);
+                outMode.alpha_c.push(modeResult.alpha_c);
+                outMode.alpha_d.push(modeResult.alpha_d);
+                outMode.alpha_total.push(modeResult.alpha_total);
+                outMode.RLGC.R.push(modeResult.RLGC.R);
+                outMode.RLGC.L.push(modeResult.RLGC.L);
+                outMode.RLGC.G.push(modeResult.RLGC.G);
+                outMode.RLGC.C.push(modeResult.RLGC.C);
+            }
+
+            // Differential-specific results
+            if (this.is_differential) {
+                result.Z_diff.push(freqResult.Z_diff);
+                result.Z_common.push(freqResult.Z_common);
+
+                // Add physical 2x2 RLGC matrix values
+                const rlgc_mat = freqResult.RLGC_matrix;
+                result.RLGC_matrix.R.R11.push(rlgc_mat.R[0][0]);
+                result.RLGC_matrix.R.R12.push(rlgc_mat.R[0][1]);
+                result.RLGC_matrix.R.R21.push(rlgc_mat.R[1][0]);
+                result.RLGC_matrix.R.R22.push(rlgc_mat.R[1][1]);
+
+                result.RLGC_matrix.L.L11.push(rlgc_mat.L[0][0]);
+                result.RLGC_matrix.L.L12.push(rlgc_mat.L[0][1]);
+                result.RLGC_matrix.L.L21.push(rlgc_mat.L[1][0]);
+                result.RLGC_matrix.L.L22.push(rlgc_mat.L[1][1]);
+
+                result.RLGC_matrix.G.G11.push(rlgc_mat.G[0][0]);
+                result.RLGC_matrix.G.G12.push(rlgc_mat.G[0][1]);
+                result.RLGC_matrix.G.G21.push(rlgc_mat.G[1][0]);
+                result.RLGC_matrix.G.G22.push(rlgc_mat.G[1][1]);
+
+                result.RLGC_matrix.C.C11.push(rlgc_mat.C[0][0]);
+                result.RLGC_matrix.C.C12.push(rlgc_mat.C[0][1]);
+                result.RLGC_matrix.C.C21.push(rlgc_mat.C[1][0]);
+                result.RLGC_matrix.C.C22.push(rlgc_mat.C[1][1]);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Compute frequency-dependent results using cached fields.
+     * This is a fast path for frequency sweeps where only frequency changes,
+     * not the geometry or dielectric distribution.
+     *
+     * @param {number} freq - Frequency in Hz
+     * @param {object} cachedResults - Results from a previous solve containing V, Ex, Ey, C, C0, Z0
+     * @returns {object} - New results with updated frequency-dependent parameters
+     */
+    async computeAtFrequency(freq, cachedResults) {
+        // Update frequency
+        this.freq = freq;
+
+        // If causal materials are enabled, we must re-solve the Laplace equation
+        // because epsilon_r changes with frequency, which changes the field distribution
+        if (this.use_causal_materials) {
+            // Apply the causal model to update epsilon_r and tand
+            applyDjordjevicSarkar(this);
+
+            // Re-solve at this frequency with updated material parameters
+            const modeResults = [];
+
+            if (this.is_differential) {
+                // Solve both odd and even modes
+                const oddMode = await this._solve_single_mode('odd', false);
+                const evenMode = await this._solve_single_mode('even', false);
+
+                // Use cached C0 values from initial solve (vacuum doesn't change)
+                oddMode.C0 = cachedResults.modes.find(m => m.mode === 'odd').C0;
+                evenMode.C0 = cachedResults.modes.find(m => m.mode === 'even').C0;
+
+                // Recalculate eps_eff and Z0 with new C and cached C0
+                oddMode.eps_eff = oddMode.C / oddMode.C0;
+                oddMode.Z0 = 1 / (CONSTANTS.C * Math.sqrt(oddMode.C * oddMode.C0));
+                evenMode.eps_eff = evenMode.C / evenMode.C0;
+                evenMode.Z0 = 1 / (CONSTANTS.C * Math.sqrt(evenMode.C * evenMode.C0));
+
+                // Recalculate RLGC parameters with corrected Z0
+                const recalc = (mode) => {
+                    const { R_ac, R_dc, R_total, L_internal } = this.calculate_conductor_loss(mode.Ex, mode.Ey, mode.Z0);
+                    const alpha_d = this.calculate_dielectric_loss(mode.Ex, mode.Ey, mode.Z0);
+                    const { Zc, rlgc, eps_eff_mode, L_external } = this.rlgc(R_total, L_internal, alpha_d, mode.C, mode.Z0);
+                    mode.RLGC = rlgc;
+                    mode.Zc = Zc;
+                    mode.eps_eff = eps_eff_mode;
+                    mode.alpha_c = 8.686 * R_total / (2 * Zc.re);
+                    mode.alpha_d = alpha_d;
+                    mode.alpha_total = mode.alpha_c + alpha_d;
+                    mode.L_internal = L_internal;
+                    mode.L_external = L_external;
+                };
+
+                recalc(oddMode);
+                recalc(evenMode);
+
+                modeResults.push(oddMode, evenMode);
+            } else {
+                // Solve single mode
+                const result = await this._solve_single_mode('single', false);
+
+                // Use cached C0 from initial solve
+                result.C0 = cachedResults.modes[0].C0;
+
+                // Recalculate eps_eff and Z0 with new C and cached C0
+                result.eps_eff = result.C / result.C0;
+                result.Z0 = 1 / (CONSTANTS.C * Math.sqrt(result.C * result.C0));
+
+                // Recalculate RLGC parameters with corrected Z0
+                const { R_ac, R_dc, R_total, L_internal } = this.calculate_conductor_loss(result.Ex, result.Ey, result.Z0);
+                const alpha_d = this.calculate_dielectric_loss(result.Ex, result.Ey, result.Z0);
+                const { Zc, rlgc, eps_eff_mode, L_external } = this.rlgc(R_total, L_internal, alpha_d, result.C, result.Z0);
+
+                result.RLGC = rlgc;
+                result.Zc = Zc;
+                result.eps_eff = eps_eff_mode;
+                result.alpha_c = 8.686 * R_total / (2 * Zc.re);
+                result.alpha_d = alpha_d;
+                result.alpha_total = result.alpha_c + alpha_d;
+                result.L_internal = L_internal;
+                result.L_external = L_external;
+
+                modeResults.push(result);
+            }
+
+            return this._build_results(modeResults);
+        }
+
+        // Fast path: Non-causal materials - use cached fields
+        const modeResults = [];
+
+        for (const cached of cachedResults.modes) {
+            const { mode, V, Ex, Ey, C, C0, Z0 } = cached;
+
+            // Recalculate conductor losses with new frequency (affects skin depth)
+            const { R_ac, R_dc, R_total, L_internal } = this.calculate_conductor_loss(Ex, Ey, Z0);
+
+            // Recalculate dielectric loss (affects omega)
+            const alpha_d = this.calculate_dielectric_loss(Ex, Ey, Z0);
+
+            // Recalculate RLGC with new frequency
+            const { Zc, rlgc, eps_eff_mode, L_external } = this.rlgc(R_total, L_internal, alpha_d, C, Z0);
+
+            // Calculate conductor loss alpha from R_total
+            const alpha_c = 8.686 * R_total / (2 * Zc.re);
+            const alpha_total = alpha_c + alpha_d;
+
+            modeResults.push({
+                mode,
+                Z0,
+                eps_eff: eps_eff_mode,
+                C, C0,
+                RLGC: rlgc, Zc,
+                alpha_c, alpha_d, alpha_total,
+                L_internal, L_external,
+                V, Ex, Ey
+            });
+        }
+
+        return this._build_results(modeResults);
+    }
+}
