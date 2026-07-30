@@ -902,7 +902,7 @@ function buildSummary() {{
     'Selected copper : ' + copper.label,
     'Model           : ' + (r.tl_type||'').replace(/_/g,' '),
     'Copper type     : ' + copper.copper_type,
-    'Roughness       : ' + (copper.roughness_um||0).toFixed(2) + ' um',
+    'RMS roughness Rq: ' + (copper.roughness_um||0).toFixed(2) + ' um',
     'Trace width     : ' + fmtLen(geo.trace_width_mm||0),
     'Trace spacing   : ' + fmtLen(geo.trace_spacing_mm||0),
     'Copper thickness: ' + fmtLen(copper.thickness_mm||0),

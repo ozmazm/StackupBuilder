@@ -106,7 +106,7 @@ def format_total_thickness(mm_value: float, selected_unit: str) -> str:
 def format_roughness_um(roughness_um: float | None) -> str:
     if roughness_um is None:
         return ""
-    return f"Ra <= {roughness_um:.1f} um"
+    return f"Rq {roughness_um:.2f} um"
 
 
 def snap_copper_weight_oz(oz_value: float) -> float:

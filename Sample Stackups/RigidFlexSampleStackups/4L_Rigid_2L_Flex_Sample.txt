@@ -1,0 +1,435 @@
+PCB Rigid-Flex Stackup Export
+==============================
+Format version: 5
+Zone count: 2
+Zone 1: Master Rigid Part | Rigid | 4 copper layers
+Zone 2: Flex Part | Flex | 2 copper layers
+
+Machine-readable project data
+-----------------------------
+<<<STACKUP_EDITOR_RIGID_FLEX_PROJECT>>>
+{
+  "format": "stackup-editor-rigid-flex",
+  "version": 5,
+  "zones": [
+    {
+      "kind": "rigid",
+      "label": "Master Rigid Part",
+      "display_unit": "mm",
+      "stackup": {
+        "mode": "rigid",
+        "layers": [
+          {
+            "kind": "copper",
+            "uid": "c76e234343404398a0f1945ba7037ebe",
+            "thickness_mm": 0.017399,
+            "copper_type": "ULP",
+            "roughness_um": 0.99,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "prepreg",
+            "material_id": "fr370hr-pdf-prepreg-fr370hr-1080-0-076-standard",
+            "selected_freq_ghz": 10.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "dummy_core",
+            "material_id": "fr370hr-pdf-core-fr370hr-3x7628-0-533-standard",
+            "selected_freq_ghz": 10.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "no_flow_prepreg",
+            "material_id": "arlon-51n-no-flow-51n8065",
+            "selected_freq_ghz": 1.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "copper",
+            "uid": "200f6eac50144bb19ec51c8f653e8ef9",
+            "thickness_mm": 0.018,
+            "copper_type": "RA",
+            "roughness_um": 1.21,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          },
+          {
+            "kind": "flex_core",
+            "material_id": "r-f777-42rv-18-100-18",
+            "selected_freq_ghz": 1.0,
+            "manufacturer": "Panasonic",
+            "family": "R-F777",
+            "variant_code": "42RV",
+            "copper_type": "RA",
+            "copper_thickness_top_mm": 0.018,
+            "copper_thickness_bottom_mm": 0.018,
+            "symmetric_copper": true,
+            "dielectric_thickness_mm": 0.1,
+            "construction": "18-100-18um (RA)",
+            "dk_by_freq_ghz": {
+              "0.1": 3.3,
+              "1.0": 3.3
+            },
+            "df_by_freq_ghz": {
+              "0.1": 0.005,
+              "1.0": 0.005
+            },
+            "reference_freq_ghz": 1.0,
+            "reference_dk": 3.3,
+            "reference_df": 0.005,
+            "max_freq_ghz": 1.0,
+            "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+            "notes": "2-layer double-side FCCL, construction 18-100-18um (RA), parsed from R-F777 datasheet variant 42RV."
+          },
+          {
+            "kind": "copper",
+            "uid": "fdae99656156443aa291ae21481a6089",
+            "thickness_mm": 0.018,
+            "copper_type": "RA",
+            "roughness_um": 1.21,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "no_flow_prepreg",
+            "material_id": "arlon-51n-no-flow-51n8065",
+            "selected_freq_ghz": 1.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "dummy_core",
+            "material_id": "fr370hr-pdf-core-fr370hr-3x7628-0-533-standard",
+            "selected_freq_ghz": 10.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "dielectric",
+            "dielectric_type": "prepreg",
+            "material_id": "fr370hr-pdf-prepreg-fr370hr-1080-0-076-standard",
+            "selected_freq_ghz": 10.0,
+            "description_override": null,
+            "manufacturer_override": null,
+            "family_override": null,
+            "construction_override": null,
+            "resin_content_pct_override": null,
+            "thickness_mm_override": null,
+            "dk_override": null,
+            "df_override": null
+          },
+          {
+            "kind": "copper",
+            "uid": "f93d031cf6174bb3885fe1a9bea0e26b",
+            "thickness_mm": 0.017399,
+            "copper_type": "ULP",
+            "roughness_um": 0.99,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          }
+        ],
+        "soldermask": {
+          "thickness_mm": 0.025,
+          "dk": 3.5,
+          "df": 0.022,
+          "freq_ghz": 1.0,
+          "manufacturer": "TAIYO AMERICA"
+        },
+        "coverlay": null,
+        "flex_sandwich_slots": [],
+        "flex_slot_capacity": 0
+      },
+      "impedance_workspace": {
+        "version": 1,
+        "single_ended": {
+          "display_unit": "mil",
+          "active_profile_index": 0,
+          "profiles": [
+            {
+              "name": "SE_50\u03a9",
+              "target_impedance_ohm": 50.0,
+              "layers": [
+                {
+                  "layer_number": 1,
+                  "ref_above_layer_number": null,
+                  "ref_below_layer_number": 2,
+                  "width_mm": null,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": null
+                },
+                {
+                  "layer_number": 2,
+                  "ref_above_layer_number": 1,
+                  "ref_below_layer_number": 3,
+                  "width_mm": 0.15239999999999998,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": 49.68787876102037
+                },
+                {
+                  "layer_number": 3,
+                  "ref_above_layer_number": 2,
+                  "ref_below_layer_number": 4,
+                  "width_mm": 0.15239999999999998,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": 49.68787876102037
+                },
+                {
+                  "layer_number": 4,
+                  "ref_above_layer_number": 3,
+                  "ref_below_layer_number": null,
+                  "width_mm": null,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": null
+                }
+              ]
+            }
+          ]
+        },
+        "differential": {
+          "display_unit": "mil",
+          "active_profile_index": 0,
+          "profiles": [
+            {
+              "name": "DIF_100\u03a9",
+              "target_impedance_ohm": 100.0,
+              "layers": [
+                {
+                  "layer_number": 2,
+                  "ref_above_layer_number": 1,
+                  "ref_below_layer_number": 3,
+                  "width_mm": 0.127,
+                  "spacing_mm": 0.254,
+                  "calculated_impedance_ohm": 99.16818045097456
+                },
+                {
+                  "layer_number": 3,
+                  "ref_above_layer_number": 2,
+                  "ref_below_layer_number": 4,
+                  "width_mm": 0.127,
+                  "spacing_mm": 0.254,
+                  "calculated_impedance_ohm": 99.16818045097456
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "flex_slot_coverage": null,
+      "flex_slot_map": {
+        "0": 0
+      },
+      "global_copper_numbers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "parent_zone_index": null,
+      "parent_zone_indices": [],
+      "definition_zone_index": null
+    },
+    {
+      "kind": "flex",
+      "label": "Flex Part",
+      "display_unit": "mm",
+      "stackup": {
+        "mode": "flex",
+        "layers": [
+          {
+            "kind": "copper",
+            "uid": "1aaa0565c0704f4aab0bae06b469704e",
+            "thickness_mm": 0.018,
+            "copper_type": "RA",
+            "roughness_um": 1.21,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          },
+          {
+            "kind": "flex_core",
+            "material_id": "r-f777-42rv-18-100-18",
+            "selected_freq_ghz": 1.0,
+            "manufacturer": "Panasonic",
+            "family": "R-F777",
+            "variant_code": "42RV",
+            "copper_type": "RA",
+            "copper_thickness_top_mm": 0.018,
+            "copper_thickness_bottom_mm": 0.018,
+            "symmetric_copper": true,
+            "dielectric_thickness_mm": 0.1,
+            "construction": "18-100-18um (RA)",
+            "dk_by_freq_ghz": {
+              "0.1": 3.3,
+              "1.0": 3.3
+            },
+            "df_by_freq_ghz": {
+              "0.1": 0.005,
+              "1.0": 0.005
+            },
+            "reference_freq_ghz": 1.0,
+            "reference_dk": 3.3,
+            "reference_df": 0.005,
+            "max_freq_ghz": 1.0,
+            "source_pdf": "PolymideCore_Adhesiveless_Panasonic_R-F777.pdf",
+            "notes": "2-layer double-side FCCL, construction 18-100-18um (RA), parsed from R-F777 datasheet variant 42RV."
+          },
+          {
+            "kind": "copper",
+            "uid": "96745a20fa574bc7a618a58b1d6c2cc9",
+            "thickness_mm": 0.018,
+            "copper_type": "RA",
+            "roughness_um": 1.21,
+            "trace_width_mm": null,
+            "trace_spacing_mm": null,
+            "target_impedance_ohm": null
+          }
+        ],
+        "soldermask": {
+          "thickness_mm": 0.025,
+          "dk": 3.5,
+          "df": 0.022,
+          "freq_ghz": 1.0,
+          "manufacturer": "TAIYO AMERICA"
+        },
+        "coverlay": {
+          "manufacturer": "Arisawa",
+          "family": "C33",
+          "selected_freq_ghz": 10.0,
+          "pi_material_id": "arisawa-c33-cvl-pi",
+          "pi_thickness_mm": 0.0125,
+          "pi_dk_by_freq_ghz": {
+            "10.0": 2.95
+          },
+          "pi_df_by_freq_ghz": {
+            "10.0": 0.0053
+          },
+          "adhesive_material_id": "arisawa-c33-cvl-adhesive",
+          "adhesive_thickness_mm": 0.025,
+          "adhesive_dk_by_freq_ghz": {
+            "10.0": 2.6
+          },
+          "adhesive_df_by_freq_ghz": {
+            "10.0": 0.0026
+          },
+          "source_pdf": "CoverlayAdhessive_Arisawa_C33.pdf"
+        },
+        "flex_sandwich_slots": [
+          0
+        ],
+        "flex_slot_capacity": 1
+      },
+      "impedance_workspace": {
+        "version": 1,
+        "single_ended": {
+          "display_unit": "mil",
+          "active_profile_index": 0,
+          "profiles": [
+            {
+              "name": "SE_50\u03a9",
+              "target_impedance_ohm": 50.0,
+              "layers": [
+                {
+                  "layer_number": 1,
+                  "ref_above_layer_number": null,
+                  "ref_below_layer_number": 2,
+                  "width_mm": 0.1905,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": 50.6286252815494
+                },
+                {
+                  "layer_number": 2,
+                  "ref_above_layer_number": 1,
+                  "ref_below_layer_number": null,
+                  "width_mm": 0.1905,
+                  "spacing_mm": null,
+                  "calculated_impedance_ohm": 50.6286252815494
+                }
+              ]
+            }
+          ]
+        },
+        "differential": {
+          "display_unit": "mil",
+          "active_profile_index": 0,
+          "profiles": [
+            {
+              "name": "DIF_100\u03a9",
+              "target_impedance_ohm": 100.0,
+              "layers": [
+                {
+                  "layer_number": 1,
+                  "ref_above_layer_number": null,
+                  "ref_below_layer_number": 2,
+                  "width_mm": 0.17779999999999999,
+                  "spacing_mm": 0.254,
+                  "calculated_impedance_ohm": 98.35236889738037
+                },
+                {
+                  "layer_number": 2,
+                  "ref_above_layer_number": 1,
+                  "ref_below_layer_number": null,
+                  "width_mm": 0.17779999999999999,
+                  "spacing_mm": 0.254,
+                  "calculated_impedance_ohm": 98.35236889738037
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "flex_slot_coverage": null,
+      "flex_slot_map": null,
+      "global_copper_numbers": null,
+      "parent_zone_index": 0,
+      "parent_zone_indices": [
+        0
+      ],
+      "definition_zone_index": null
+    }
+  ]
+}
+<<<END_STACKUP_EDITOR_RIGID_FLEX_PROJECT>>>

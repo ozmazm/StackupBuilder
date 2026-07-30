@@ -27428,6 +27428,190 @@
       "reference_df": 0.0024,
       "max_freq_ghz": 20.0,
       "notes": "prepreg row parsed from local TUC Dk/Df table."
+    },
+    {
+      "id": "arlon-51n-no-flow-51n0672",
+      "manufacturer": "Arlon",
+      "series": "51N",
+      "family": "51N",
+      "material_type": "no_flow_prepreg",
+      "variant": "51N0672",
+      "source_pdf": "ARLON_51N.pdf",
+      "construction": "106",
+      "resin_content_pct": 72.0,
+      "thickness_mm": 0.05588,
+      "thickness_in": 0.0022,
+      "thickness_um": 55.88,
+      "classification": "No-Flow",
+      "style": "106",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "0.001": 4.2,
+        "1.0": 4.1
+      },
+      "df_by_freq_ghz": {
+        "0.001": 0.02,
+        "1.0": 0.02
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 4.1,
+      "reference_df": 0.02,
+      "max_freq_ghz": 1.0,
+      "notes": "51N low-flow prepreg availability and typical electrical properties verified from ARLON_51N.pdf; flow range 60-120 mil."
+    },
+    {
+      "id": "arlon-51n-no-flow-51n0666",
+      "manufacturer": "Arlon",
+      "series": "51N",
+      "family": "51N",
+      "material_type": "no_flow_prepreg",
+      "variant": "51N0666",
+      "source_pdf": "ARLON_51N.pdf",
+      "construction": "106",
+      "resin_content_pct": 65.0,
+      "thickness_mm": 0.04318,
+      "thickness_in": 0.0017,
+      "thickness_um": 43.18,
+      "classification": "No-Flow",
+      "style": "106",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "0.001": 4.2,
+        "1.0": 4.1
+      },
+      "df_by_freq_ghz": {
+        "0.001": 0.02,
+        "1.0": 0.02
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 4.1,
+      "reference_df": 0.02,
+      "max_freq_ghz": 1.0,
+      "notes": "51N low-flow prepreg availability and typical electrical properties verified from ARLON_51N.pdf; flow range 60-120 mil."
+    },
+    {
+      "id": "arlon-51n-no-flow-51n8065",
+      "manufacturer": "Arlon",
+      "series": "51N",
+      "family": "51N",
+      "material_type": "no_flow_prepreg",
+      "variant": "51N8065",
+      "source_pdf": "ARLON_51N.pdf",
+      "construction": "1080",
+      "resin_content_pct": 65.0,
+      "thickness_mm": 0.08128,
+      "thickness_in": 0.0032,
+      "thickness_um": 81.28,
+      "classification": "No-Flow",
+      "style": "1080",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "0.001": 4.2,
+        "1.0": 4.1
+      },
+      "df_by_freq_ghz": {
+        "0.001": 0.02,
+        "1.0": 0.02
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 4.1,
+      "reference_df": 0.02,
+      "max_freq_ghz": 1.0,
+      "notes": "51N low-flow prepreg availability and typical electrical properties verified from ARLON_51N.pdf; flow range 60-120 mil."
+    },
+    {
+      "id": "arlon-51n-no-flow-51n8060",
+      "manufacturer": "Arlon",
+      "series": "51N",
+      "family": "51N",
+      "material_type": "no_flow_prepreg",
+      "variant": "51N8060",
+      "source_pdf": "ARLON_51N.pdf",
+      "construction": "1080",
+      "resin_content_pct": 60.0,
+      "thickness_mm": 0.06858,
+      "thickness_in": 0.0027,
+      "thickness_um": 68.58,
+      "classification": "No-Flow",
+      "style": "1080",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "0.001": 4.2,
+        "1.0": 4.1
+      },
+      "df_by_freq_ghz": {
+        "0.001": 0.02,
+        "1.0": 0.02
+      },
+      "reference_freq_ghz": 1.0,
+      "reference_dk": 4.1,
+      "reference_df": 0.02,
+      "max_freq_ghz": 1.0,
+      "notes": "51N low-flow prepreg availability and typical electrical properties verified from ARLON_51N.pdf; flow range 60-120 mil."
+    },
+    {
+      "id": "tuc-tu-84p-nf-no-flow-106",
+      "manufacturer": "TUC",
+      "series": "TU-84P NF",
+      "family": "TU-84P NF",
+      "material_type": "no_flow_prepreg",
+      "variant": "TU-84P NF",
+      "source_pdf": "TU-84P NF.PDF",
+      "construction": "106",
+      "resin_content_pct": 50.0,
+      "thickness_mm": 0.05,
+      "thickness_in": 0.002,
+      "thickness_um": 50.0,
+      "classification": "No-Flow",
+      "style": "106",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "1.0": 4.4,
+        "5.0": 4.5,
+        "10.0": 4.4
+      },
+      "df_by_freq_ghz": {
+        "1.0": 0.01,
+        "5.0": 0.014,
+        "10.0": 0.015
+      },
+      "reference_freq_ghz": 10.0,
+      "reference_dk": 4.4,
+      "reference_df": 0.015,
+      "max_freq_ghz": 10.0,
+      "notes": "TU-84P NF no-flow prepreg standard availability verified from TU-84P NF.PDF. Dk/Df values are specified at RC 50%."
+    },
+    {
+      "id": "tuc-tu-84p-nf-no-flow-1080",
+      "manufacturer": "TUC",
+      "series": "TU-84P NF",
+      "family": "TU-84P NF",
+      "material_type": "no_flow_prepreg",
+      "variant": "TU-84P NF",
+      "source_pdf": "TU-84P NF.PDF",
+      "construction": "1080",
+      "resin_content_pct": 50.0,
+      "thickness_mm": 0.08,
+      "thickness_in": 0.003,
+      "thickness_um": 80.0,
+      "classification": "No-Flow",
+      "style": "1080",
+      "plies": 1,
+      "dk_by_freq_ghz": {
+        "1.0": 4.4,
+        "5.0": 4.5,
+        "10.0": 4.4
+      },
+      "df_by_freq_ghz": {
+        "1.0": 0.01,
+        "5.0": 0.014,
+        "10.0": 0.015
+      },
+      "reference_freq_ghz": 10.0,
+      "reference_dk": 4.4,
+      "reference_df": 0.015,
+      "max_freq_ghz": 10.0,
+      "notes": "TU-84P NF no-flow prepreg standard availability verified from TU-84P NF.PDF. Dk/Df values are specified at RC 50%."
     }
   ]
 }

@@ -9,20 +9,93 @@ from stackup_editor.catalog import MaterialCatalog, MaterialEntry
 from stackup_editor.flex_catalog import CoverlayEntry, CoverlayMaterialCatalog, FlexCoreEntry, FlexCoreMaterialCatalog
 from stackup_editor.units import from_display
 
-COPPER_TYPES = ("RTF", "VLP", "HVLP", "STD")
+COPPER_TYPES = ("RTF", "VLP", "HVLP", "ULP")
 FLEX_COPPER_TYPES = ("ED", "RA")
-COPPER_ROUGHNESS_BY_TYPE_UM = {
-    "RTF": 5.0,
-    "VLP": 3.0,
-    "HVLP": 2.0,
-    "STD": 7.0,
-    "ED": 7.0,
-    "RA": 3.0,
+COPPER_RZ_BY_TYPE_UM = {
+    "RTF": 4.21,
+    "VLP": 3.86,
+    "HVLP": 1.80,
+    "ULP": 1.09,
 }
+COPPER_RQ_BY_TYPE_UM = {
+    "RTF": 3.13,
+    "VLP": 1.21,
+    "HVLP": 1.23,
+    "ULP": 0.99,
+}
+COPPER_TYPE_ROUGHNESS_EQUIVALENTS = {"STD": "ULP", "ED": "RTF", "RA": "VLP"}
+NO_FLOW_PREPREG_TYPE = "no_flow_prepreg"
+DUMMY_CORE_TYPE = "dummy_core"
+ETCHED_CORE_TYPE = "etched_core"
+PREPREG_DIELECTRIC_TYPES = frozenset({"prepreg", NO_FLOW_PREPREG_TYPE})
+DIELECTRIC_TYPE_CHOICES: tuple[tuple[str, str], ...] = (
+    ("Core", "core"),
+    ("Dummy Core", DUMMY_CORE_TYPE),
+    ("Etched Core", ETCHED_CORE_TYPE),
+    ("Prepreg", "prepreg"),
+    ("No-Flow Prepreg", NO_FLOW_PREPREG_TYPE),
+)
+
+
+def is_prepreg_dielectric_type(dielectric_type: str) -> bool:
+    return dielectric_type in PREPREG_DIELECTRIC_TYPES
+
+
+def is_no_flow_prepreg_type(dielectric_type: str) -> bool:
+    return dielectric_type == NO_FLOW_PREPREG_TYPE
+
+
+def is_dummy_core_type(dielectric_type: str) -> bool:
+    return dielectric_type == DUMMY_CORE_TYPE
+
+
+def is_etched_core_type(dielectric_type: str) -> bool:
+    return dielectric_type == ETCHED_CORE_TYPE
+
+
+def catalog_material_type_for_dielectric(dielectric_type: str) -> str:
+    return (
+        "core"
+        if is_dummy_core_type(dielectric_type)
+        or is_etched_core_type(dielectric_type)
+        else dielectric_type
+    )
+
+
+def dielectric_type_display_name(dielectric_type: str) -> str:
+    if dielectric_type == NO_FLOW_PREPREG_TYPE:
+        return "No-Flow Prepreg"
+    if dielectric_type == DUMMY_CORE_TYPE:
+        return "Dummy Core"
+    if dielectric_type == ETCHED_CORE_TYPE:
+        return "Etched Core"
+    return dielectric_type.replace("_", " ").title()
+
+
+def normalized_copper_type(copper_type: str) -> str:
+    normalized = copper_type.strip().upper()
+    return "ULP" if normalized == "STD" else normalized
+
+
+def copper_roughness_reference_type(copper_type: str) -> str:
+    normalized = normalized_copper_type(copper_type)
+    return COPPER_TYPE_ROUGHNESS_EQUIVALENTS.get(normalized, normalized)
+
+
+def copper_rz_um(copper_type: str) -> float | None:
+    return COPPER_RZ_BY_TYPE_UM.get(copper_roughness_reference_type(copper_type))
 
 
 def copper_roughness_um(copper_type: str) -> float:
-    return COPPER_ROUGHNESS_BY_TYPE_UM.get(copper_type.upper(), 5.0)
+    return COPPER_RQ_BY_TYPE_UM.get(copper_roughness_reference_type(copper_type), 3.13)
+
+
+def copper_type_choice_label(copper_type: str) -> str:
+    rz_um = copper_rz_um(copper_type)
+    rq_um = copper_roughness_um(copper_type)
+    if rz_um is None:
+        return copper_type
+    return f"{copper_type} | Rz {rz_um:.2f} um | Rq {rq_um:.2f} um"
 
 
 def infer_copper_type(roughness_um: float | None, *, tolerance_um: float = 0.35) -> str:
@@ -30,7 +103,7 @@ def infer_copper_type(roughness_um: float | None, *, tolerance_um: float = 0.35)
         return ""
     best_type = ""
     best_delta = None
-    for copper_type, reference in COPPER_ROUGHNESS_BY_TYPE_UM.items():
+    for copper_type, reference in COPPER_RQ_BY_TYPE_UM.items():
         delta = abs(reference - roughness_um)
         if best_delta is None or delta < best_delta:
             best_type = copper_type
@@ -58,6 +131,7 @@ class CopperLayer:
     def __post_init__(self) -> None:
         if not self.uid:
             self.uid = new_copper_uid()
+        self.copper_type = normalized_copper_type(self.copper_type)
         if self.roughness_um is None and self.copper_type:
             self.sync_roughness()
 
@@ -65,7 +139,7 @@ class CopperLayer:
     def roughness_label(self) -> str:
         if self.roughness_um is None:
             return ""
-        return f"Ra <= {self.roughness_um:.1f} um"
+        return f"Rq {self.roughness_um:.2f} um"
 
     def sync_roughness(self) -> None:
         if not self.copper_type:
@@ -74,7 +148,7 @@ class CopperLayer:
         self.roughness_um = copper_roughness_um(self.copper_type)
 
     def set_copper_type(self, copper_type: str) -> None:
-        self.copper_type = copper_type
+        self.copper_type = normalized_copper_type(copper_type)
         self.sync_roughness()
 
     def regenerate_uid(self) -> None:
@@ -392,7 +466,7 @@ class Stackup:
         if layer.description_override:
             return layer.description_override
         family = self.dielectric_family(layer, catalog)
-        suffix = "PP" if layer.dielectric_type == "prepreg" else "Core"
+        suffix = "PP" if is_prepreg_dielectric_type(layer.dielectric_type) else "Core"
         if family:
             return f"{family} - {suffix}"
         return ""
@@ -465,7 +539,7 @@ class Stackup:
         if self.mode != "rigid":
             return None
         previous_dielectric_index: int | None = None
-        previous_was_core = False
+        previous_core_kind: str | None = None
         replacement_layers = replacements or {}
         removed = removed_indices or set()
         for index, current_layer in enumerate(self.layers):
@@ -474,20 +548,130 @@ class Stackup:
             layer = replacement_layers.get(index, current_layer)
             if not is_dielectric_like(layer):
                 continue
-            is_core = isinstance(layer, FlexCoreLayer) or (
-                isinstance(layer, DielectricLayer) and layer.dielectric_type == "core"
-            )
-            if previous_was_core and is_core and previous_dielectric_index is not None:
+            if isinstance(layer, FlexCoreLayer):
+                core_kind = "flex_core"
+            elif (
+                isinstance(layer, DielectricLayer)
+                and layer.dielectric_type == "core"
+            ):
+                core_kind = layer.dielectric_type
+            else:
+                core_kind = None
+            if (
+                previous_core_kind is not None
+                and core_kind is not None
+                and previous_dielectric_index is not None
+            ):
                 return previous_dielectric_index, index
             previous_dielectric_index = index
-            previous_was_core = is_core
+            previous_core_kind = core_kind
+        return None
+
+    def dummy_core_bonding_violation(
+        self,
+        replacements: dict[int, Layer] | None = None,
+        removed_indices: set[int] | None = None,
+    ) -> tuple[int, str] | None:
+        """Return a Dummy Core missing prepreg immediately before or after it."""
+        if self.mode != "rigid":
+            return None
+        replacement_layers = replacements or {}
+        removed = removed_indices or set()
+        effective_layers = [
+            (index, replacement_layers.get(index, layer))
+            for index, layer in enumerate(self.layers)
+            if index not in removed
+        ]
+        for position, (index, layer) in enumerate(effective_layers):
+            if not (
+                isinstance(layer, DielectricLayer)
+                and is_dummy_core_type(layer.dielectric_type)
+            ):
+                continue
+            before = effective_layers[position - 1][1] if position > 0 else None
+            after = (
+                effective_layers[position + 1][1]
+                if position + 1 < len(effective_layers)
+                else None
+            )
+            if not (
+                isinstance(before, DielectricLayer)
+                and is_prepreg_dielectric_type(before.dielectric_type)
+            ):
+                return index, "before"
+            if not (
+                isinstance(after, DielectricLayer)
+                and is_prepreg_dielectric_type(after.dielectric_type)
+            ):
+                return index, "after"
+        return None
+
+    def etched_core_bonding_violation(
+        self,
+        replacements: dict[int, Layer] | None = None,
+        removed_indices: set[int] | None = None,
+    ) -> tuple[int, str] | None:
+        """Return an Etched Core without prepreg on either adjacent side."""
+        if self.mode != "rigid":
+            return None
+        replacement_layers = replacements or {}
+        removed = removed_indices or set()
+        effective_layers = [
+            (index, replacement_layers.get(index, layer))
+            for index, layer in enumerate(self.layers)
+            if index not in removed
+        ]
+        for position, (index, layer) in enumerate(effective_layers):
+            if not (
+                isinstance(layer, DielectricLayer)
+                and is_etched_core_type(layer.dielectric_type)
+            ):
+                continue
+            before = effective_layers[position - 1][1] if position > 0 else None
+            after = (
+                effective_layers[position + 1][1]
+                if position + 1 < len(effective_layers)
+                else None
+            )
+            prepreg_before = (
+                isinstance(before, DielectricLayer)
+                and is_prepreg_dielectric_type(before.dielectric_type)
+            )
+            prepreg_after = (
+                isinstance(after, DielectricLayer)
+                and is_prepreg_dielectric_type(after.dielectric_type)
+            )
+            if not (prepreg_before or prepreg_after):
+                return index, "neither"
+        return None
+
+    def bonded_core_bonding_message(
+        self,
+        replacements: dict[int, Layer] | None = None,
+        removed_indices: set[int] | None = None,
+    ) -> str | None:
+        if self.dummy_core_bonding_violation(
+            replacements,
+            removed_indices,
+        ) is not None:
+            return "There must be a prepreg before and after Dummy Core."
+        if self.etched_core_bonding_violation(
+            replacements,
+            removed_indices,
+        ) is not None:
+            return "There must be a prepreg before or after Etched Core."
         return None
 
     def symmetry_report(self, catalog: MaterialCatalog) -> tuple[bool, list[str]]:
         issues: list[str] = []
         core_pair = self.consecutive_core_pair()
         if core_pair is not None:
-            issues.append("Core materials must be separated by prepreg.")
+            issues.append(
+                "Rigid Core and Flex Core materials must be separated by Rigid PP."
+            )
+        bonding_message = self.bonded_core_bonding_message()
+        if bonding_message is not None:
+            issues.append(bonding_message)
         total = len(self.layers)
         for index in range(total // 2):
             top = self.layers[index]
@@ -783,6 +967,11 @@ class Stackup:
         mirror = self.mirror_index(index)
         if not isinstance(self.layers[mirror], DielectricLayer):
             return False, "The selected dielectric layer does not have a dielectric symmetry pair."
+        bonding_message = self.bonded_core_bonding_message(
+            removed_indices={index, mirror}
+        )
+        if bonding_message is not None:
+            return False, bonding_message
 
         span_left, span_right = self._dielectric_span_bounds(index)
         span_count = span_right - span_left - 1
@@ -860,7 +1049,10 @@ def _preferred_material_entry(
 ) -> MaterialEntry:
     normalized_construction = construction.replace(" ", "").lower()
     normalized_classification = classification.lower() if classification is not None else None
-    candidates = catalog.filter_entries(material_type=material_type, family=family)
+    candidates = catalog.filter_entries(
+        material_type=catalog_material_type_for_dielectric(material_type),
+        family=family,
+    )
     exact = [
         entry
         for entry in candidates
@@ -1048,7 +1240,9 @@ def rebuild_rigid_stackup_from_slot_activity(
     top_prefix = [clone_layer(layer) for layer in rigid_stackup.layers[:start]]
     bottom_suffix = [clone_layer(layer) for layer in rigid_stackup.layers[end + 1 :]]
     bridge_template = deepcopy(bridge_dielectric_template) if bridge_dielectric_template is not None else None
-    if bridge_template is not None and bridge_template.dielectric_type != "prepreg":
+    if bridge_template is not None and not is_prepreg_dielectric_type(
+        bridge_template.dielectric_type
+    ):
         raise ValueError("Inter-sandwich rigid material must be prepreg.")
     outer_boundary_template = (
         deepcopy(outer_boundary_dielectric_template)
@@ -1079,13 +1273,25 @@ def rebuild_rigid_stackup_from_slot_activity(
         for layer in layers:
             if not isinstance(layer, DielectricLayer):
                 continue
-            layer_is_core = layer.dielectric_type == "core"
-            previous_is_core = bool(
-                normalized
+            layer_core_kind = (
+                layer.dielectric_type
+                if layer.dielectric_type == "core"
+                else None
+            )
+            previous_core_kind = (
+                normalized[-1].dielectric_type
+                if normalized
                 and isinstance(normalized[-1], DielectricLayer)
                 and normalized[-1].dielectric_type == "core"
+                else None
             )
-            if (not normalized and layer_is_core) or (previous_is_core and layer_is_core):
+            if (
+                not normalized
+                and layer_core_kind is not None
+            ) or (
+                previous_core_kind is not None
+                and layer_core_kind is not None
+            ):
                 normalized.append(deepcopy(bridge_template))
             normalized.append(clone_layer(layer))
         if not normalized or (
@@ -1151,9 +1357,11 @@ def rebuild_rigid_stackup_from_slot_activity(
 
     if outer_boundary_template is not None:
         if top_prefix and isinstance(top_prefix[-1], DielectricLayer):
-            top_prefix[-1] = deepcopy(outer_boundary_template)
+            if not is_prepreg_dielectric_type(top_prefix[-1].dielectric_type):
+                top_prefix[-1] = deepcopy(outer_boundary_template)
         if bottom_suffix and isinstance(bottom_suffix[0], DielectricLayer):
-            bottom_suffix[0] = deepcopy(outer_boundary_template)
+            if not is_prepreg_dielectric_type(bottom_suffix[0].dielectric_type):
+                bottom_suffix[0] = deepcopy(outer_boundary_template)
 
     return Stackup(
         mode="rigid",
@@ -1192,9 +1400,11 @@ def rebuild_rigid_stackup_from_flex_zone(
 
     if outer_boundary_template is not None:
         if top_prefix and isinstance(top_prefix[-1], DielectricLayer):
-            top_prefix[-1] = deepcopy(outer_boundary_template)
+            if not is_prepreg_dielectric_type(top_prefix[-1].dielectric_type):
+                top_prefix[-1] = deepcopy(outer_boundary_template)
         if bottom_suffix and isinstance(bottom_suffix[0], DielectricLayer):
-            bottom_suffix[0] = deepcopy(outer_boundary_template)
+            if not is_prepreg_dielectric_type(bottom_suffix[0].dielectric_type):
+                bottom_suffix[0] = deepcopy(outer_boundary_template)
 
     return Stackup(
         mode="rigid",
@@ -1232,13 +1442,13 @@ def build_default_rigid_flex_rigid_stackup(
         layers=[
             CopperLayer(thickness_mm=outer_copper_mm, copper_type="RTF"),
             DielectricLayer(dielectric_type="core", material_id=core.id, selected_freq_ghz=core.max_freq_ghz),
-            CopperLayer(thickness_mm=inner_copper_mm, copper_type="STD"),
+            CopperLayer(thickness_mm=inner_copper_mm, copper_type="ULP"),
             DielectricLayer(dielectric_type="prepreg", material_id=prepreg.id, selected_freq_ghz=prepreg.max_freq_ghz),
             CopperLayer(thickness_mm=flex_layer.copper_thickness_top_mm, copper_type=flex_layer.copper_type),
             flex_layer,
             CopperLayer(thickness_mm=flex_layer.copper_thickness_bottom_mm, copper_type=flex_layer.copper_type),
             DielectricLayer(dielectric_type="prepreg", material_id=prepreg.id, selected_freq_ghz=prepreg.max_freq_ghz),
-            CopperLayer(thickness_mm=inner_copper_mm, copper_type="STD"),
+            CopperLayer(thickness_mm=inner_copper_mm, copper_type="ULP"),
             DielectricLayer(dielectric_type="core", material_id=core.id, selected_freq_ghz=core.max_freq_ghz),
             CopperLayer(thickness_mm=outer_copper_mm, copper_type="RTF"),
         ],

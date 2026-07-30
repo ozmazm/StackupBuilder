@@ -40,25 +40,58 @@ def main() -> int:
 
         from stackup_editor.mode_dialog import StackupModeDialog
 
-        mode_dialog = StackupModeDialog()
-        mode_dialog.exec()
-        if mode_dialog.chosen_mode is None:
-            logger.info("Mode dialog dismissed without a choice; exiting")
-            return 0
-        logger.info("Stackup mode chosen: %s", mode_dialog.chosen_mode)
+        def choose_stackup_mode() -> str | None:
+            mode_dialog = StackupModeDialog()
+            mode_dialog.exec()
+            if mode_dialog.chosen_mode is not None:
+                logger.info("Stackup mode chosen: %s", mode_dialog.chosen_mode)
+            return mode_dialog.chosen_mode
 
-        if mode_dialog.chosen_mode == "rigid_flex":
-            from stackup_editor.rigid_flex_app import RigidFlexEditorWindow
+        def create_main_window(mode: str):
+            if mode == "rigid_flex":
+                from stackup_editor.rigid_flex_app import RigidFlexEditorWindow
 
-            logger.info("Creating rigid-flex main window")
-            window = RigidFlexEditorWindow(root_path)
-        else:
+                logger.info("Creating rigid-flex main window")
+                return RigidFlexEditorWindow(root_path)
+
             from stackup_editor.qt_app import StackupEditorWindow
 
             logger.info("Creating rigid main window")
-            window = StackupEditorWindow(root_path)
+            return StackupEditorWindow(root_path)
 
-        window.showMaximized()
+        chosen_mode = choose_stackup_mode()
+        if chosen_mode is None:
+            logger.info("Mode dialog dismissed without a choice; exiting")
+            return 0
+
+        window_holder = [create_main_window(chosen_mode)]
+
+        def connect_new_stackup(window) -> None:
+            window.newStackupRequested.connect(
+                lambda source=window: return_to_mode_chooser(source)
+            )
+
+        def return_to_mode_chooser(source_window) -> None:
+            app.setQuitOnLastWindowClosed(False)
+            source_window.hide()
+            replacement_mode = choose_stackup_mode()
+            if replacement_mode is None:
+                logger.info("Mode dialog dismissed after New; closing application")
+                app.setQuitOnLastWindowClosed(True)
+                source_window.close()
+                return
+
+            replacement = create_main_window(replacement_mode)
+            connect_new_stackup(replacement)
+            window_holder[0] = replacement
+            replacement.showMaximized()
+            app.setQuitOnLastWindowClosed(True)
+            source_window.close()
+            source_window.deleteLater()
+            logger.info("Current stackup replaced with a new %s stackup", replacement_mode)
+
+        connect_new_stackup(window_holder[0])
+        window_holder[0].showMaximized()
         logger.info("Main window shown maximized")
 
         exit_code = app.exec()

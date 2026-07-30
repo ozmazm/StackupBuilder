@@ -17,10 +17,9 @@ from pathlib import Path
 
 # Panasonic's sheet calls copper types "ED" (electrodeposited) and "RA"
 # (rolled-annealed). The rest of the app's copper-roughness model is keyed
-# off the rigid-side names STD/VLP. Per spec: ED behaves like STD roughness,
-# RA behaves like VLP roughness -- but the UI must always display "ED"/"RA"
-# for flex-core copper, never "STD"/"VLP".
-FLEX_TO_RIGID_COPPER_TYPE = {"ED": "STD", "RA": "VLP"}
+# off the rigid-side names RTF/VLP. ED behaves like RTF and RA behaves like
+# VLP -- but the UI must always display "ED"/"RA".
+FLEX_TO_RIGID_COPPER_TYPE = {"ED": "RTF", "RA": "VLP"}
 RIGID_TO_FLEX_COPPER_TYPE = {value: key for key, value in FLEX_TO_RIGID_COPPER_TYPE.items()}
 
 
@@ -79,8 +78,8 @@ class FlexCoreEntry:
 
     @property
     def rigid_copper_type(self) -> str:
-        """The STD/VLP-space equivalent, for reuse of existing roughness lookups."""
-        return FLEX_TO_RIGID_COPPER_TYPE.get(self.copper_type, "STD")
+        """The RTF/VLP-space equivalent, for reuse of existing roughness lookups."""
+        return FLEX_TO_RIGID_COPPER_TYPE.get(self.copper_type, "RTF")
 
 
 class FlexCoreMaterialCatalog:

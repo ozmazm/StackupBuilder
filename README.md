@@ -48,10 +48,15 @@ It is especially useful when the design contains multiple flex sandwiches or whe
 
 ### Rigid-flex editing
 
-- Start with a rigid zone followed by a flex zone.
-- Add or remove alternating rigid and flex zones.
+- Start with a master rigid part followed by a Flex Part.
+- Add a separate Flex Part after any selected rigid part to continue or branch the connected construction.
+- Add multiple rigid parts after any selected Flex Part.
+- Merge parallel Flex Parts into one downstream rigid part; every continuing flex-core span is preserved in the merged rigid construction.
+- Select one or several flex sandwiches; each selected sandwich creates its own minimal rigid part in one operation.
+- Clone an existing rigid part when an identical full construction is required.
+- Keep global copper labels stable across upper, lower, combined, and identical rigid branches.
 - Insert and remove flex sandwiches.
-- Display all linked zones in a combined live stackup.
+- Display all connected rigid parts in a fan-out live stackup.
 - Select layers from either the table or the combined preview.
 - Synchronize flex-core copper type and thickness with corresponding rigid copper rows.
 - Keep coverlay and adhesive layers attached to the correct flex sandwich.
@@ -171,11 +176,19 @@ Apply the result to the selected layer or its symmetric pair. Copper rows provid
 
 In rigid-flex mode:
 
-1. Edit flex-core and coverlay materials from the Flex tab.
-2. Insert or remove flex sandwiches as required.
-3. Add rigid prepreg in valid bridge locations between flex cores.
-4. Use **Add Zone** to extend the rigid/flex sequence.
-5. Review the combined live stackup after every structural change.
+1. Treat tabs as editable stackup definitions and the live stackup as the physical-instance view.
+2. Every flex sandwich inserted directly into the first/master rigid zone receives its own independent Flex Part tab and material definition.
+3. Later repeated live instances may bind to one of those Flex Part definitions; editing that tab updates all of its bound instances without creating duplicate tabs.
+4. Add rigid prepreg in valid bridge locations between flex cores.
+5. Select **Add Rigid Part**, enter the first part name, and check the required flex sandwiches. Multiple checks create multiple consecutively named physical rigid instances in one operation.
+6. Choose **One minimal rigid part per selected sandwich**, select an offered intermediate copper-layer count, create an independent full-span part with the same copper-layer count as the Master Rigid Part, or clone an existing rigid construction.
+7. A non-cloned rigid part always receives its own editable tab, even when it has the same copper-layer count as the Master Rigid Part. Only an explicit **Clone** construction shares an existing rigid definition and appears as another live-stackup instance.
+8. Use **Add Flex Part** from a downstream connected rigid instance to add a bound live flex instance. A Flex Part created directly from the master rigid zone or from a disconnected rigid root receives a separate editable tab.
+9. When parallel Flex Parts continue into the same downstream position, adding the rigid part from either bound instance merges all of their flex-core spans automatically.
+10. Review the connected live stackup after every structural change.
+11. A flex sandwich connected to an additional rigid part cannot be removed until that rigid part is removed. Unconnected flex instances remain removable, while the project must retain at least one Flex Part.
+
+Bound instances share editable material definitions while retaining their own physical slot, connection, and coverage data. This keeps material edits consistent without presenting visualization-only copies as independent stackups.
 
 ### 5. Calculate impedance
 
@@ -183,7 +196,7 @@ Open **Calculate Impedance**, choose the single-ended or differential section, c
 
 ### 6. Save or exchange the result
 
-Use the File menu to export a text or Xpedition stackup. Importing the exported text later restores the supported stackup and impedance-workspace data.
+Use the File menu to export a text or Xpedition stackup. Rigid-flex text projects also preserve rigid-part names, flex-sandwich connections, shared-definition bindings, global layer numbers, and impedance workspaces so the complete branching layout can be restored later.
 
 ## Installation
 

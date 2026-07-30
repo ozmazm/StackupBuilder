@@ -4,14 +4,16 @@ import logging
 import math
 import sys
 import traceback
+from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QFile, QEventLoop, QMargins, QObject, QPointF, QRectF, QSize, Qt, QSignalBlocker, Signal, QStandardPaths
-from PySide6.QtGui import QAction, QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtCore import QEvent, QFile, QEventLoop, QMargins, QObject, QPointF, QRectF, QSize, Qt, QSignalBlocker, Signal, QStandardPaths, QSortFilterProxyModel
+from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap, QStandardItem, QStandardItemModel
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -20,7 +22,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListView,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -41,12 +45,14 @@ from stackup_editor.exporter import (
     export_stackup_xpedition,
     import_stackup_text,
     import_stackup_xpedition,
+    stackup_import_mode_warning,
 )
 from stackup_editor.flex_catalog import CoverlayMaterialCatalog, FlexCoreEntry, FlexCoreMaterialCatalog
 from stackup_editor.impedance_dialog import CalculateImpedanceDialog
 from stackup_editor.impedance_models import ImpedanceWorkspaceState
 from stackup_editor.models import (
     COPPER_TYPES,
+    DIELECTRIC_TYPE_CHOICES,
     FLEX_COPPER_TYPES,
     CopperLayer,
     DielectricLayer,
@@ -58,7 +64,13 @@ from stackup_editor.models import (
     build_default_stackup,
     build_default_flex_stackup,
     copper_roughness_um,
+    copper_type_choice_label,
+    catalog_material_type_for_dielectric,
+    dielectric_type_display_name,
     is_dielectric_like,
+    is_dummy_core_type,
+    is_etched_core_type,
+    is_no_flow_prepreg_type,
 )
 from stackup_editor.solver_results_webview import FieldSolverResultsDialog
 from stackup_editor.units import (
@@ -80,7 +92,7 @@ TABLE_COLUMNS: tuple[tuple[str, str], ...] = (
     ("layer", "Layer"),
     ("material", "Material"),
     ("thickness", "Thickness"),
-    ("roughness", "Roughness"),
+    ("roughness", "Roughness (Rq)"),
     ("manufacturer", "Manufacturer"),
     ("dielectric_material", "Dielectric Material"),
     ("construction", "Constructions"),
@@ -89,8 +101,29 @@ TABLE_COLUMNS: tuple[tuple[str, str], ...] = (
     ("df", "Df"),
     ("frequency", "Freq"),
 )
+TABLE_COLUMN_INDEX = {
+    key: index
+    for index, (key, _title) in enumerate(TABLE_COLUMNS)
+}
 
 logger = logging.getLogger(__name__)
+
+
+def populate_copper_type_combo(combo: QComboBox, copper_types: tuple[str, ...]) -> None:
+    combo.clear()
+    for copper_type in copper_types:
+        combo.addItem(copper_type_choice_label(copper_type), copper_type)
+
+
+def selected_copper_type(combo: QComboBox) -> str:
+    data = combo.currentData()
+    return str(data).strip() if data is not None else combo.currentText().strip()
+
+
+def set_selected_copper_type(combo: QComboBox, copper_type: str) -> None:
+    index = combo.findData(copper_type)
+    if index >= 0:
+        combo.setCurrentIndex(index)
 
 
 
@@ -122,6 +155,107 @@ class NoScrollComboBox(QComboBox):
         event.ignore()
 
 
+class MaterialConstructionCombo(NoScrollComboBox):
+    """Standard construction combo with a separate searchable popup."""
+
+    materialSelected = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._popup_width = 0
+        self._source_model = QStandardItemModel(self)
+        self._proxy_model = QSortFilterProxyModel(self)
+        self._proxy_model.setSourceModel(self._source_model)
+        self._proxy_model.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self._proxy_model.setFilterKeyColumn(0)
+        self.setEditable(False)
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.setMinimumContentsLength(12)
+
+        self._popup = QFrame(self, Qt.WindowType.Popup)
+        self._popup.setObjectName("ConstructionPickerPopup")
+        popup_layout = QVBoxLayout(self._popup)
+        popup_layout.setContentsMargins(8, 8, 8, 8)
+        popup_layout.setSpacing(6)
+
+        self._popup_search = QLineEdit(self._popup)
+        self._popup_search.setPlaceholderText("Filter constructions...")
+        self._popup_list = QListView(self._popup)
+        self._popup_list.setModel(self._proxy_model)
+        self._popup_list.setUniformItemSizes(True)
+        popup_layout.addWidget(self._popup_search)
+        popup_layout.addWidget(self._popup_list, 1)
+
+        self._popup_search.textChanged.connect(self._filter_materials)
+        self._popup_search.returnPressed.connect(self._commit_first_filtered_material)
+        self._popup_list.clicked.connect(self._commit_popup_material)
+        self._popup_list.activated.connect(self._commit_popup_material)
+
+    def set_materials(
+        self,
+        items: list[tuple[str, str, str]],
+        *,
+        selected_id: str | None = None,
+    ) -> None:
+        self._proxy_model.setFilterFixedString("")
+        self._source_model.clear()
+        with QSignalBlocker(self):
+            self.clear()
+        font_metrics = QFontMetrics(self._popup_list.font())
+        self._popup_width = 0
+        for full_label, material_id, compact_label in items:
+            item = QStandardItem(full_label)
+            item.setData(material_id, Qt.ItemDataRole.UserRole)
+            item.setToolTip(full_label)
+            self._source_model.appendRow(item)
+            self.addItem(compact_label, material_id)
+            self._popup_width = max(
+                self._popup_width,
+                font_metrics.horizontalAdvance(full_label) + 48,
+            )
+        self._select_material(selected_id)
+
+    def showPopup(self) -> None:  # type: ignore[override]
+        if not self.isEnabled() or self._source_model.rowCount() == 0:
+            return
+        with QSignalBlocker(self._popup_search):
+            self._popup_search.clear()
+        self._proxy_model.setFilterFixedString("")
+        popup_width = max(self.width(), min(self._popup_width, 760))
+        visible_rows = min(max(self._proxy_model.rowCount(), 1), 14)
+        row_height = self._popup_list.sizeHintForRow(0)
+        if row_height <= 0:
+            row_height = 28
+        popup_height = self._popup_search.sizeHint().height() + (visible_rows * row_height) + 28
+        self._popup.resize(popup_width, popup_height)
+        self._popup.move(self.mapToGlobal(self.rect().bottomLeft()))
+        self._popup.show()
+        self._popup.raise_()
+        self._popup_search.setFocus()
+
+    def hidePopup(self) -> None:  # type: ignore[override]
+        self._popup.hide()
+
+    def _select_material(self, material_id: str | None) -> None:
+        self.setCurrentIndex(self.findData(material_id))
+
+    def _filter_materials(self, text: str) -> None:
+        self._proxy_model.setFilterFixedString(text)
+
+    def _commit_first_filtered_material(self) -> None:
+        if self._proxy_model.rowCount() > 0:
+            self._commit_popup_material(self._proxy_model.index(0, 0))
+
+    def _commit_popup_material(self, index) -> None:
+        material_id = index.data(Qt.ItemDataRole.UserRole)
+        if material_id is None:
+            return
+        material_id = str(material_id)
+        self._select_material(material_id)
+        self.hidePopup()
+        self.materialSelected.emit(material_id)
+
+
 class _WheelBlocker(QObject):
     """Event filter that swallows wheel events on the watched widget."""
 
@@ -134,6 +268,7 @@ class _WheelBlocker(QObject):
 
 class LiveStackupWidget(QWidget):
     layerSelected = Signal(int)
+    layerContextMenuRequested = Signal(int, object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -189,6 +324,16 @@ class LiveStackupWidget(QWidget):
                 self.layerSelected.emit(index)
                 break
         super().mousePressEvent(event)
+
+    def contextMenuEvent(self, event) -> None:  # type: ignore[override]
+        point = QPointF(event.pos())
+        for rect, index in self._layer_regions:
+            if rect.contains(point) and index is not None:
+                self.layerSelected.emit(index)
+                self.layerContextMenuRequested.emit(index, event.globalPos())
+                event.accept()
+                return
+        event.ignore()
 
     def _blend_hex(self, start_hex: str, end_hex: str, ratio: float) -> QColor:
         ratio = max(0.0, min(1.0, ratio))
@@ -267,7 +412,18 @@ class LiveStackupWidget(QWidget):
                 return f"{primary} | {secondary}"
             return primary or secondary
         dk, df = self.stackup.dielectric_dk_df_or_none(layer, self.catalog)
-        primary = self._dielectric_material_name(layer)
+        primary = (
+            "Rigid PP-No Flow"
+            if isinstance(layer, DielectricLayer)
+            and is_no_flow_prepreg_type(layer.dielectric_type)
+            else "Rigid Dummy Core"
+            if isinstance(layer, DielectricLayer)
+            and is_dummy_core_type(layer.dielectric_type)
+            else "Rigid Etched Core"
+            if isinstance(layer, DielectricLayer)
+            and is_etched_core_type(layer.dielectric_type)
+            else self._dielectric_material_name(layer)
+        )
         construction = self._dielectric_construction_text(layer)
         if construction:
             primary = f"{primary} | {construction}" if primary else construction
@@ -278,7 +434,7 @@ class LiveStackupWidget(QWidget):
             secondary_parts.append(f"Df {df:.4f}")
         secondary = " | ".join(secondary_parts)
         if not primary:
-            primary = layer.dielectric_type.title()
+            primary = dielectric_type_display_name(layer.dielectric_type)
         if not secondary:
             return primary
         return f"{primary} | {secondary}"
@@ -472,9 +628,26 @@ class LiveStackupWidget(QWidget):
                         self._live_preview_thickness_text(thickness_mm, is_copper=False) if thickness_mm is not None else ""
                     )
                 else:
-                    fill = QColor("#77a8c8") if layer.dielectric_type == "core" else QColor("#bfd79a")
-                    outline = QColor("#a4d1eb") if layer.dielectric_type == "core" else QColor("#dce9b8")
-                    text_color = QColor("#10202e")
+                    if is_dummy_core_type(layer.dielectric_type):
+                        fill = QColor("#e67e22")
+                        outline = QColor("#ffb05c")
+                        text_color = QColor("#211206")
+                    elif is_etched_core_type(layer.dielectric_type):
+                        fill = QColor("#f39c12")
+                        outline = QColor("#ffc35a")
+                        text_color = QColor("#211506")
+                    elif layer.dielectric_type == "core":
+                        fill = QColor("#77a8c8")
+                        outline = QColor("#a4d1eb")
+                        text_color = QColor("#10202e")
+                    elif is_no_flow_prepreg_type(layer.dielectric_type):
+                        fill = QColor("#5a321e")
+                        outline = QColor("#a66a43")
+                        text_color = QColor("#fff2e6")
+                    else:
+                        fill = QColor("#bfd79a")
+                        outline = QColor("#dce9b8")
+                        text_color = QColor("#10202e")
                     left_label = ""
                     thickness_mm = self.stackup.dielectric_thickness_mm(layer, self.catalog)
                     right_label = (
@@ -585,6 +758,7 @@ class LiveStackupWidget(QWidget):
 
 
 class StackupEditorWindow(QMainWindow):
+    newStackupRequested = Signal()
     flexCoreChanged = Signal(object)
     sharedRegionChanged = Signal()
     structureChanged = Signal()
@@ -625,6 +799,7 @@ class StackupEditorWindow(QMainWindow):
         self._last_solver_result: dict[str, object] | None = None
         self._solver_result_window: FieldSolverResultsDialog | None = None
         self._impedance_dialog: CalculateImpedanceDialog | None = None
+        self.build_context_menu_handler = None
         self.impedance_workspace = ImpedanceWorkspaceState()
         self._impedance_legacy_migrated = False
         self._ui_scale = 1.0
@@ -632,10 +807,18 @@ class StackupEditorWindow(QMainWindow):
         self.minimum_copper_count = 2
         self.copper_number_overrides: dict[int, int] = {}
         self.locked_copper_indices: set[int] = set()
+        self.locked_copper_note = "This shared flex copper is editable from the flex zone only."
         self.locked_dielectric_indices: set[int] = set()
+        self.no_flow_prepreg_editable = True
+        self.no_flow_prepreg_available = False
+        self.allowed_copper_removal_indices: set[int] | None = None
         self.protected_structure_bounds: tuple[int, int] | None = None
         self.material_insertion_allowed_indices: set[int] | None = None
         self.zone_display_name = "Flex zone" if self.is_flex_zone else "Rigid zone"
+        self.dielectric_row_prefix: str | None = None
+        self.dielectric_row_labels: dict[int, str] = {}
+        self.coverlay_row_prefix: str | None = None
+        self.flex_core_row_labels: dict[int, str] = {}
 
         self.palette_map = {
             "bg": "#091521",
@@ -687,16 +870,31 @@ class StackupEditorWindow(QMainWindow):
         *,
         display_copper_numbers: dict[int, int] | None = None,
         locked_copper_indices: set[int] | None = None,
+        locked_copper_note: str | None = None,
         locked_dielectric_indices: set[int] | None = None,
+        allowed_copper_removal_indices: set[int] | None = None,
         protected_structure_bounds: tuple[int, int] | None = None,
         material_insertion_allowed_indices: set[int] | None = None,
         structure_locked: bool | None = None,
         minimum_copper_count: int | None = None,
         zone_display_name: str | None = None,
+        dielectric_row_prefix: str | None = None,
+        dielectric_row_labels: dict[int, str] | None = None,
+        coverlay_row_prefix: str | None = None,
+        flex_core_row_labels: dict[int, str] | None = None,
+        no_flow_prepreg_editable: bool | None = None,
+        no_flow_prepreg_available: bool | None = None,
     ) -> None:
         self.copper_number_overrides = dict(display_copper_numbers or {})
         self.locked_copper_indices = set(locked_copper_indices or set())
+        if locked_copper_note is not None:
+            self.locked_copper_note = locked_copper_note
         self.locked_dielectric_indices = set(locked_dielectric_indices or set())
+        self.allowed_copper_removal_indices = (
+            set(allowed_copper_removal_indices)
+            if allowed_copper_removal_indices is not None
+            else None
+        )
         self.protected_structure_bounds = protected_structure_bounds
         self.material_insertion_allowed_indices = (
             set(material_insertion_allowed_indices)
@@ -709,6 +907,35 @@ class StackupEditorWindow(QMainWindow):
             self.minimum_copper_count = max(2, minimum_copper_count)
         if zone_display_name:
             self.zone_display_name = zone_display_name
+        if dielectric_row_prefix is not None:
+            self.dielectric_row_prefix = dielectric_row_prefix
+        if dielectric_row_labels is not None:
+            self.dielectric_row_labels = dict(dielectric_row_labels)
+        if coverlay_row_prefix is not None:
+            self.coverlay_row_prefix = coverlay_row_prefix
+        if flex_core_row_labels is not None:
+            self.flex_core_row_labels = dict(flex_core_row_labels)
+        if no_flow_prepreg_editable is not None:
+            self.no_flow_prepreg_editable = no_flow_prepreg_editable
+        if no_flow_prepreg_available is not None:
+            self.no_flow_prepreg_available = no_flow_prepreg_available
+            blocker = QSignalBlocker(self.dielectric_type_combo)
+            selected_type = self.dielectric_type_combo.currentText()
+            self.dielectric_type_combo.clear()
+            self.dielectric_type_combo.addItems(
+                [
+                    value
+                    for _label, value in DIELECTRIC_TYPE_CHOICES
+                    if value != "no_flow_prepreg"
+                    or (
+                        self.no_flow_prepreg_available
+                        and self.no_flow_prepreg_editable
+                    )
+                ]
+            )
+            if selected_type:
+                self.dielectric_type_combo.setCurrentText(selected_type)
+            del blocker
         self._refresh_everything(select_meta=self._current_row_meta())
 
     def replace_stackup(self, stackup: Stackup, *, select_meta: tuple[str, int | str] | None = None) -> None:
@@ -770,6 +997,21 @@ class StackupEditorWindow(QMainWindow):
         self.layer_frequency_combo = self._require_child(QComboBox, "layer_frequency_combo")
         self.global_frequency_combo = self._require_child(QComboBox, "global_frequency_combo")
         self.apply_all_frequency_button = self._require_child(QPushButton, "apply_all_frequency_button")
+        self.layer_frequency_field_label = self._require_child(QLabel, "layer_frequency_field_label")
+        self.global_frequency_field_label = self._require_child(QLabel, "global_frequency_field_label")
+        self.readonly_dielectric_card = self._require_child(QFrame, "ReadonlyCard")
+
+        # Frequency selection remains an internal material-catalog detail. The
+        # dielectric editor exposes material selection and apply actions only.
+        for widget in (
+            self.layer_frequency_field_label,
+            self.layer_frequency_combo,
+            self.global_frequency_field_label,
+            self.global_frequency_combo,
+            self.apply_all_frequency_button,
+            self.readonly_dielectric_card,
+        ):
+            widget.hide()
 
         # Install wheel blocker on UI-file-loaded combo boxes (NoScrollComboBox handles
         # the programmatically created ones; these need an event filter instead).
@@ -853,23 +1095,34 @@ class StackupEditorWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setStretchLastSection(False)
         self.table.itemSelectionChanged.connect(self._on_table_selection_changed)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._on_table_context_menu_requested)
         self.table.itemChanged.connect(self._on_table_item_changed)
 
         self.unit_combo.clear()
         self.unit_combo.addItems(list(SUPPORTED_UNITS))
         self.unit_combo.setCurrentText(self.display_unit)
         self.unit_combo.currentTextChanged.connect(self._on_display_unit_change)
-        self.copper_type_combo.clear()
         if self.is_flex_zone:
-            self.copper_type_combo.addItems(list(COPPER_TYPES) + list(FLEX_COPPER_TYPES))
+            populate_copper_type_combo(
+                self.copper_type_combo,
+                COPPER_TYPES + FLEX_COPPER_TYPES,
+            )
         else:
-            self.copper_type_combo.addItems(list(COPPER_TYPES))
+            populate_copper_type_combo(self.copper_type_combo, COPPER_TYPES)
         self.copper_type_combo.currentTextChanged.connect(self._preview_copper_profile)
         self.dielectric_type_combo.clear()
         if self.is_flex_zone:
             self.dielectric_type_combo.addItems(["flex_core"])
         else:
-            self.dielectric_type_combo.addItems(["core", "prepreg"])
+            self.dielectric_type_combo.addItems(
+                [
+                    value
+                    for _label, value in DIELECTRIC_TYPE_CHOICES
+                    if value != "no_flow_prepreg"
+                    or self.no_flow_prepreg_available
+                ]
+            )
         self.dielectric_type_combo.currentTextChanged.connect(self._on_dielectric_type_change)
         self.dielectric_manufacturer_combo.currentTextChanged.connect(self._on_dielectric_manufacturer_change)
         self.dielectric_family_combo.currentTextChanged.connect(self._on_dielectric_family_change)
@@ -890,6 +1143,7 @@ class StackupEditorWindow(QMainWindow):
         self.apply_all_frequency_button.clicked.connect(self._apply_frequency_to_all_dielectrics)
 
         self._build_file_menu()
+        self._build_command_menus()
         self.file_title_label.setText("Analysis")
 
         self.insert_flex_sandwich_button: QPushButton | None = None
@@ -923,6 +1177,7 @@ class StackupEditorWindow(QMainWindow):
 
         self.preview = LiveStackupWidget()
         self.preview.layerSelected.connect(self._on_preview_layer_selected)
+        self.preview.layerContextMenuRequested.connect(self._on_preview_context_menu_requested)
         self._mount_host_widget(self.preview_host, self.preview)
         self.editor_scroll.viewport().setObjectName("EditorScrollViewport")
         for widget in (
@@ -940,12 +1195,74 @@ class StackupEditorWindow(QMainWindow):
         self.snapshot_group.hide()
         if self.copyright_frame is not None:
             self.copyright_frame.hide()
-        self._install_left_pane_splitter()
+        # The table itself is now the editor. Keep the legacy widgets alive for
+        # compatibility with existing controller code, but remove their panel
+        # from the visible layout.
+        self.editor_group.hide()
+        self._install_symmetry_control()
         self._normalize_loaded_layout()
         self._configure_zone_mode_controls()
 
+        toolbar_card = self.findChild(QWidget, "ToolbarCard")
+        if toolbar_card is not None:
+            toolbar_card.hide()
+
+    def _install_symmetry_control(self) -> None:
+        self.apply_symmetry_checkbox: QCheckBox | None = None
+        if self.is_flex_zone:
+            return
+        left_layout = self.left_pane.layout()
+        if left_layout is None:
+            return
+        insert_index = left_layout.indexOf(self.table_group)
+        if insert_index < 0:
+            return
+
+        control_bar = QFrame(self.left_pane)
+        control_bar.setObjectName("SymmetryControlBar")
+        control_layout = QHBoxLayout(control_bar)
+        control_layout.setContentsMargins(8, 2, 10, 2)
+        control_layout.setSpacing(8)
+        control_layout.addStretch(1)
+
+        checkbox = QCheckBox("Apply Symmetry", control_bar)
+        checkbox.setObjectName("ApplySymmetryCheck")
+        checkbox.setChecked(True)
+        checkbox.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Fixed,
+        )
+        checkbox.setToolTip(
+            "Apply copper, dielectric material, and frequency changes to the mirror layer."
+        )
+        checkbox.toggled.connect(self._on_apply_symmetry_toggled)
+        control_layout.addWidget(checkbox)
+
+        left_layout.insertWidget(insert_index, control_bar)
+        self.symmetry_control_bar = control_bar
+        self.apply_symmetry_checkbox = checkbox
+
+    def _on_apply_symmetry_toggled(self, checked: bool) -> None:
+        self._set_note(
+            "Table changes will update each mirror layer automatically."
+            if checked
+            else "Table layers can now be adjusted individually."
+        )
+        self._update_buttons()
+
+    def _apply_symmetry_enabled(self) -> bool:
+        return bool(
+            self.apply_symmetry_checkbox is not None
+            and self.apply_symmetry_checkbox.isChecked()
+        )
+
     def _build_file_menu(self) -> None:
         self.file_menu = self.menuBar().addMenu("&File")
+        self.new_stackup_action = QAction("&New", self)
+        self.new_stackup_action.setStatusTip("Create a new stackup")
+        self.new_stackup_action.triggered.connect(self._request_new_stackup)
+        self.file_menu.addAction(self.new_stackup_action)
+        self.file_menu.addSeparator()
         self.import_menu = self.file_menu.addMenu("&Import")
         self.export_menu = self.file_menu.addMenu("&Export")
 
@@ -969,6 +1286,146 @@ class StackupEditorWindow(QMainWindow):
         self.export_xpedition_action.triggered.connect(self._export_xpedition_stackup)
         self.export_menu.addAction(self.export_xpedition_action)
 
+    def _request_new_stackup(self) -> None:
+        answer = QMessageBox.warning(
+            self,
+            "Create new stackup",
+            "All the changes will be lost, Do you want to continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.newStackupRequested.emit()
+
+    def _build_command_menus(self) -> None:
+        self.build_menu = self.menuBar().addMenu("&Build")
+        self.add_layer_above_action = self.build_menu.addAction("Add Layer Above")
+        self.add_layer_above_action.triggered.connect(self._add_copper_above)
+        self.add_layer_below_action = self.build_menu.addAction("Add Layer Below")
+        self.add_layer_below_action.triggered.connect(self._add_copper_below)
+        self.build_menu.addSeparator()
+        self.add_material_above_action = self.build_menu.addAction("Add Material Above")
+        self.add_material_above_action.triggered.connect(self._add_material_above)
+        self.add_material_below_action = self.build_menu.addAction("Add Material Below")
+        self.add_material_below_action.triggered.connect(self._add_material_below)
+        self.build_menu.addSeparator()
+        self.remove_symmetric_pair_action = self.build_menu.addAction("Remove Symmetric Pair")
+        self.remove_symmetric_pair_action.triggered.connect(self._remove_selected)
+
+        self.insert_flex_sandwich_action = QAction("Insert Flex Sandwich", self)
+        self.insert_flex_sandwich_action.triggered.connect(self.insertFlexSandwichRequested.emit)
+        self.remove_flex_sandwich_action = QAction("Remove Flex Sandwich", self)
+        self.remove_flex_sandwich_action.triggered.connect(self.removeFlexSandwichRequested.emit)
+        self.flex_menu: QMenu | None = None
+        if self.is_flex_zone:
+            self.flex_menu = self.menuBar().addMenu("&Flex")
+            self.flex_menu.addAction(self.insert_flex_sandwich_action)
+            self.flex_menu.addAction(self.remove_flex_sandwich_action)
+
+        self.analysis_menu = self.menuBar().addMenu("&Analysis")
+        self.calculate_impedance_action = self.analysis_menu.addAction("Calculate Impedance")
+        self.calculate_impedance_action.triggered.connect(self._open_impedance_dialog)
+
+        self.units_menu = self.menuBar().addMenu("&Units")
+        self.unit_action_group = QActionGroup(self)
+        self.unit_action_group.setExclusive(True)
+        self.unit_actions: dict[str, QAction] = {}
+        for unit in SUPPORTED_UNITS:
+            action = QAction(unit, self, checkable=True)
+            action.setData(unit)
+            action.setChecked(unit == self.display_unit)
+            action.triggered.connect(lambda _checked=False, value=unit: self.unit_combo.setCurrentText(value))
+            self.unit_action_group.addAction(action)
+            self.units_menu.addAction(action)
+            self.unit_actions[unit] = action
+
+    def _sync_command_menu_state(self) -> None:
+        self.add_layer_above_action.setEnabled(not self.is_flex_zone and self.add_above_button.isEnabled())
+        self.add_layer_below_action.setEnabled(not self.is_flex_zone and self.add_below_button.isEnabled())
+        self.add_material_above_action.setEnabled(
+            not self.is_flex_zone and self.add_material_above_button.isEnabled()
+        )
+        self.add_material_below_action.setEnabled(
+            not self.is_flex_zone and self.add_material_below_button.isEnabled()
+        )
+        self.remove_symmetric_pair_action.setEnabled(
+            not self.is_flex_zone
+            and self._apply_symmetry_enabled()
+            and self.remove_button.isEnabled()
+        )
+        self.build_menu.menuAction().setEnabled(not self.is_flex_zone)
+
+        self.insert_flex_sandwich_action.setEnabled(self.is_flex_zone)
+        self.remove_flex_sandwich_action.setEnabled(
+            self.is_flex_zone and self.stackup.flex_core_count() > 1
+        )
+        if self.flex_menu is not None:
+            self.flex_menu.menuAction().setEnabled(self.is_flex_zone)
+
+        self.calculate_impedance_action.setEnabled(self.calculate_impedance_button.isEnabled())
+        current_unit_action = self.unit_actions.get(self.display_unit)
+        if current_unit_action is not None:
+            current_unit_action.setChecked(True)
+
+    def _context_actions_for_meta(self, meta: tuple[str, int | str]) -> list[QAction]:
+        if meta[0] != "layer":
+            return []
+        index = int(meta[1])
+        if index < 0 or index >= len(self.stackup.layers):
+            return []
+        layer = self.stackup.layers[index]
+
+        if isinstance(layer, FlexCoreLayer):
+            if not self.is_flex_zone:
+                return []
+            actions = [self.insert_flex_sandwich_action]
+            if self.remove_flex_sandwich_action.isEnabled():
+                actions.append(self.remove_flex_sandwich_action)
+            return actions
+
+        if self.is_flex_zone:
+            return []
+        if isinstance(layer, CopperLayer):
+            actions = [self.add_layer_above_action, self.add_layer_below_action]
+        elif isinstance(layer, DielectricLayer):
+            actions = [self.add_material_above_action, self.add_material_below_action]
+        else:
+            return []
+        if (
+            self.remove_symmetric_pair_action.isEnabled()
+            or not self._apply_symmetry_enabled()
+        ):
+            actions.append(self.remove_symmetric_pair_action)
+        return actions
+
+    def _show_build_context_menu(self, meta: tuple[str, int | str], global_pos: object) -> None:
+        self._select_row_meta(meta)
+        self._update_buttons()
+        if callable(self.build_context_menu_handler):
+            handled = bool(self.build_context_menu_handler(meta, global_pos))
+            if handled:
+                return
+
+        actions = self._context_actions_for_meta(meta)
+        if not actions:
+            return
+        menu = QMenu(self)
+        for position, action in enumerate(actions):
+            if position == 2 and action is self.remove_symmetric_pair_action:
+                menu.addSeparator()
+            menu.addAction(action)
+        menu.exec(global_pos)
+
+    def _on_table_context_menu_requested(self, position) -> None:
+        row = self.table.rowAt(position.y())
+        if row < 0 or row >= len(self._row_meta):
+            return
+        meta = self._row_meta[row]
+        self._show_build_context_menu(meta, self.table.viewport().mapToGlobal(position))
+
+    def _on_preview_context_menu_requested(self, index: int, global_pos: object) -> None:
+        self._show_build_context_menu(("layer", index), global_pos)
+
     def _configure_zone_mode_controls(self) -> None:
         if not self.is_flex_zone:
             return
@@ -981,14 +1438,17 @@ class StackupEditorWindow(QMainWindow):
         self.import_text_action.setEnabled(False)
         self.export_xpedition_action.setEnabled(False)
         self.export_text_action.setEnabled(False)
-        self.calculate_impedance_button.setEnabled(False)
+        self.calculate_impedance_button.setEnabled(True)
         self.apply_all_frequency_button.setEnabled(False)
         self.apply_sym_layer_button.setEnabled(False)
         self.import_xpedition_action.setStatusTip("Flex-zone import is not wired yet.")
         self.import_text_action.setStatusTip("Flex-zone import is not wired yet.")
         self.export_xpedition_action.setStatusTip("Flex-zone export is not wired yet.")
         self.export_text_action.setStatusTip("Flex-zone export is not wired yet.")
-        self.calculate_impedance_button.setToolTip("Flex-zone impedance workflow is not wired yet.")
+        self.calculate_impedance_button.setToolTip(
+            "Calculate flex-zone impedance using Flex Core and the combined coverlay construction."
+        )
+        self._sync_command_menu_state()
 
     def _load_main_window_ui(self) -> QMainWindow:
         ui_path = self.root_path / "stackup_editor" / "ui" / "stackup_editor_main.ui"
@@ -1098,6 +1558,29 @@ class StackupEditorWindow(QMainWindow):
         self.preview_host.setMinimumHeight(240)
         self.preview_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
+        if not self.is_flex_zone:
+            # Keep the rigid Stackup preview at its minimum width while allowing
+            # it to consume all available vertical space.
+            self.right_pane.setFixedWidth(340)
+            self.preview_group.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Expanding,
+            )
+            self.preview_host.setFixedWidth(300)
+            self.preview_host.setMinimumHeight(324)
+            self.preview_host.setMaximumHeight(16777215)
+            self.preview_host.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Expanding,
+            )
+            self.preview.setFixedWidth(300)
+            self.preview.setMinimumHeight(324)
+            self.preview.setMaximumHeight(16777215)
+            self.preview.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Expanding,
+            )
+
         self.note_group.setMinimumHeight(58)
         self.note_group.setMaximumHeight(96)
         self.note_group.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
@@ -1129,7 +1612,7 @@ class StackupEditorWindow(QMainWindow):
         grid.setVerticalSpacing(10)
         grid.addWidget(self._field_label("Copper type"), 0, 0)
         self.copper_type_combo = NoScrollComboBox()
-        self.copper_type_combo.addItems(list(COPPER_TYPES))
+        populate_copper_type_combo(self.copper_type_combo, COPPER_TYPES)
         self.copper_type_combo.currentTextChanged.connect(self._preview_copper_profile)
         grid.addWidget(self.copper_type_combo, 0, 1)
         grid.addWidget(self._field_label("Thickness"), 0, 2)
@@ -1166,7 +1649,14 @@ class StackupEditorWindow(QMainWindow):
         grid.setVerticalSpacing(10)
         grid.addWidget(self._field_label("Dielectric type"), 0, 0)
         self.dielectric_type_combo = NoScrollComboBox()
-        self.dielectric_type_combo.addItems(["core", "prepreg"])
+        self.dielectric_type_combo.addItems(
+            [
+                value
+                for _label, value in DIELECTRIC_TYPE_CHOICES
+                if value != "no_flow_prepreg"
+                or self.no_flow_prepreg_available
+            ]
+        )
         self.dielectric_type_combo.currentTextChanged.connect(self._on_dielectric_type_change)
         grid.addWidget(self.dielectric_type_combo, 0, 1)
         grid.addWidget(self._field_label("Manufacturer"), 0, 2)
@@ -1293,6 +1783,11 @@ class StackupEditorWindow(QMainWindow):
                 border: 1px solid {self.palette_map['border']};
                 padding: {px(5)}px;
             }}
+            QFrame#ConstructionPickerPopup {{
+                background: {self.palette_map['surface']};
+                border: 1px solid {self.palette_map['border']};
+                border-radius: {px(8)}px;
+            }}
             QMenu::item {{
                 border-radius: {px(5)}px;
                 padding: {px(7)}px {px(28)}px {px(7)}px {px(12)}px;
@@ -1311,6 +1806,17 @@ class StackupEditorWindow(QMainWindow):
             }}
             #ToolbarCard {{
                 background: {self.palette_map['surface_alt']};
+            }}
+            QFrame#SymmetryControlBar {{
+                background: transparent;
+                border: none;
+            }}
+            QCheckBox#ApplySymmetryCheck {{
+                color: {self.palette_map['text']};
+                font-family: "Bahnschrift";
+                font-weight: 700;
+                spacing: {px(8)}px;
+                padding: {px(4)}px {px(8)}px;
             }}
             QGroupBox {{
                 margin-top: {px(10)}px;
@@ -1574,9 +2080,12 @@ class StackupEditorWindow(QMainWindow):
         self._ui_scale = scale
         self._apply_stylesheet(scale)
         self.table.verticalHeader().setDefaultSectionSize(max(26, round(30 * scale)))
-        if hasattr(self, "preview") and self.preview is not None:
+        if hasattr(self, "preview") and self.preview is not None and self.is_flex_zone:
             self.preview.setMinimumSize(max(300, round(320 * scale)), max(260, round(360 * scale)))
-        self.right_pane.setMinimumWidth(max(340, round(360 * scale)))
+        if self.is_flex_zone:
+            self.right_pane.setMinimumWidth(max(340, round(360 * scale)))
+        else:
+            self.right_pane.setFixedWidth(340)
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
@@ -1674,8 +2183,11 @@ class StackupEditorWindow(QMainWindow):
     def _coverlay_row_values(self, sandwich_slot: int, side: str, component: str) -> tuple[str, ...]:
         if self.stackup.coverlay is None:
             return ("", "", "", "", "", "", "", "", "", "", "")
-        sandwich_count = max(1, self.stackup.flex_core_count())
-        if sandwich_count == 1:
+        if self.coverlay_row_prefix:
+            side_name = "Top" if side == "top" else "Bot"
+            component_name = "PI" if component == "pi" else "Adhessive"
+            layer_name = f"{self.coverlay_row_prefix}{side_name}Coverlay{component_name}"
+        elif max(1, self.stackup.flex_core_count()) == 1:
             layer_name = f"{side.title()} Coverlay {'PI' if component == 'pi' else 'Adhesive'}"
         else:
             layer_name = f"Sandwich {sandwich_slot + 1} {side.title()} Coverlay {'PI' if component == 'pi' else 'Adhesive'}"
@@ -1759,7 +2271,11 @@ class StackupEditorWindow(QMainWindow):
         self._refresh_everything(select_meta=self._current_row_meta())
 
     def _soldermask_row_values(self, position: str, soldermask: SolderMaskSettings) -> tuple[str, ...]:
-        layer_name = "Top Solder Mask" if position == "top" else "Bottom Solder Mask"
+        if self.dielectric_row_prefix:
+            side_name = "Top" if position == "top" else "Bot"
+            layer_name = f"{self.dielectric_row_prefix}{side_name}Soldermask"
+        else:
+            layer_name = "Top Solder Mask" if position == "top" else "Bottom Solder Mask"
         return (
             layer_name,
             "Solder Mask",
@@ -1807,13 +2323,580 @@ class StackupEditorWindow(QMainWindow):
                     if row_type == "soldermask" and column_key in {"thickness", "dk", "df"}:
                         item.setText(self._soldermask_edit_value(column_key))
                         flags |= Qt.ItemFlag.ItemIsEditable
+                    elif (
+                        row_type == "copper"
+                        and column_key == "thickness"
+                        and meta[0] == "layer"
+                    ):
+                        layer_index = int(meta[1])
+                        layer = self.stackup.layers[layer_index]
+                        locked = (
+                            layer_index in self.locked_copper_indices
+                            or (
+                                self.is_flex_zone
+                                and self._adjacent_flex_core(layer_index) is not None
+                            )
+                        )
+                        if isinstance(layer, CopperLayer):
+                            unit = thickness_unit_for_layer(
+                                self.display_unit,
+                                is_copper=True,
+                            )
+                            precision = UNIT_PRECISION[unit]
+                            item.setText(
+                                f"{to_display(layer.thickness_mm, unit):.{precision}f}"
+                            )
+                            if not locked:
+                                flags |= Qt.ItemFlag.ItemIsEditable
                     item.setFlags(flags)
                     self._style_table_item(item, row_type)
                     self.table.setItem(row, col, item)
+            self._install_table_editors()
             self.table.resizeColumnsToContents()
             self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
             self._select_row_meta(select_meta)
         self._table_refreshing = False
+
+    def _new_table_combo(
+        self,
+        items: list[tuple[str, object]],
+        *,
+        selected_data: object | None,
+        enabled: bool,
+    ) -> NoScrollComboBox:
+        combo = NoScrollComboBox(self.table)
+        combo.setObjectName("TableCellCombo")
+        combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        combo.setMinimumContentsLength(8)
+        self._populate_combo(combo, items, selected_data=selected_data)
+        combo.setEnabled(enabled)
+        return combo
+
+    def _rigid_material_choice_label(self, entry: MaterialEntry) -> str:
+        classification = entry.classification or entry.style or "Standard"
+        return (
+            f"{entry.construction} | {entry.thickness_mm:g}mm | "
+            f"RC {entry.resin_content_pct:.1f}% | Dk {entry.reference_dk:g} | "
+            f"{classification}"
+        )
+
+    def _flex_material_choice_label(self, entry: FlexCoreEntry) -> str:
+        return (
+            f"{entry.construction_label} | {entry.dielectric_thickness_mm:g}mm | "
+            f"Dk {entry.reference_dk:g} | {entry.copper_type}"
+        )
+
+    def _install_table_editors(self) -> None:
+        for layer_index, row in self._layer_row_by_index.items():
+            if not 0 <= layer_index < len(self.stackup.layers):
+                continue
+            layer = self.stackup.layers[layer_index]
+            if is_dielectric_like(layer):
+                self._install_dielectric_table_editors(row, layer_index, layer)
+            elif isinstance(layer, CopperLayer):
+                self._install_copper_table_editors(row, layer_index, layer)
+
+    def _install_dielectric_table_editors(
+        self,
+        row: int,
+        layer_index: int,
+        layer: DielectricLikeLayer,
+    ) -> None:
+        inherited_no_flow = (
+            isinstance(layer, DielectricLayer)
+            and is_no_flow_prepreg_type(layer.dielectric_type)
+            and not self.no_flow_prepreg_editable
+        )
+        locked = layer_index in self.locked_dielectric_indices or inherited_no_flow
+        is_flex_core = isinstance(layer, FlexCoreLayer)
+        entry: MaterialEntry | FlexCoreEntry | None
+        if is_flex_core:
+            entry = (
+                self.flex_core_catalog.get(layer.material_id)
+                if self.flex_core_catalog is not None and layer.material_id
+                else None
+            )
+            manufacturer = layer.manufacturer
+            family = layer.family
+            material_type = "flex_core"
+            material_type_items: list[tuple[str, object]] = [("Flex Core", "flex_core")]
+        else:
+            entry = self._dielectric_entry(layer)
+            manufacturer = self._dielectric_manufacturer_text(layer) or None
+            family = (
+                entry.family
+                if isinstance(entry, MaterialEntry)
+                else layer.family_override
+            )
+            material_type = layer.dielectric_type
+            material_type_items = [
+                choice
+                for choice in DIELECTRIC_TYPE_CHOICES
+                if choice[1] != "no_flow_prepreg"
+                or (
+                    self.no_flow_prepreg_available
+                    and self.no_flow_prepreg_editable
+                )
+                or is_no_flow_prepreg_type(layer.dielectric_type)
+            ]
+
+        type_combo = self._new_table_combo(
+            material_type_items,
+            selected_data=material_type,
+            enabled=not locked and not is_flex_core,
+        )
+        manufacturer_combo = self._new_table_combo([], selected_data=None, enabled=not locked)
+        family_combo = self._new_table_combo([], selected_data=None, enabled=not locked)
+        construction_combo = MaterialConstructionCombo(self.table)
+        construction_combo.setObjectName("ConstructionMaterialPicker")
+        construction_combo.setEnabled(not locked)
+        frequency_combo = self._new_table_combo([], selected_data=None, enabled=not locked)
+
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["material"], type_combo)
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["manufacturer"], manufacturer_combo)
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["dielectric_material"], family_combo)
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["construction"], construction_combo)
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["frequency"], frequency_combo)
+
+        # A rigid-zone copy of a connected flex core does not own the flex
+        # catalog. Show the inherited values as disabled selectors; its Flex
+        # Part table remains the single source of truth for editing.
+        if is_flex_core and self.flex_core_catalog is None:
+            self._populate_combo(
+                manufacturer_combo,
+                [(layer.manufacturer, layer.manufacturer)] if layer.manufacturer else [],
+                selected_data=layer.manufacturer or None,
+            )
+            self._populate_combo(
+                family_combo,
+                [(layer.family, layer.family)] if layer.family else [],
+                selected_data=layer.family or None,
+            )
+            material_id = layer.material_id or "__connected_flex_core__"
+            construction_combo.set_materials(
+                [
+                    (
+                        (
+                            f"{layer.construction} | {layer.dielectric_thickness_mm:g}mm | "
+                            f"Dk {layer.reference_dk:g} | {layer.copper_type}"
+                        ),
+                        material_id,
+                        layer.construction,
+                    )
+                ],
+                selected_id=material_id,
+            )
+            selected_frequency = layer.closest_frequency(layer.selected_freq_ghz)
+            self._populate_combo(
+                frequency_combo,
+                [
+                    (self._frequency_label(value), value)
+                    for value in layer.sorted_frequencies
+                ],
+                selected_data=selected_frequency,
+            )
+            for combo in (
+                type_combo,
+                manufacturer_combo,
+                family_combo,
+                construction_combo,
+                frequency_combo,
+            ):
+                combo.setEnabled(False)
+            return
+
+        def selected_text(combo: QComboBox) -> str | None:
+            text = combo.currentText().strip()
+            return text or None
+
+        def available_entries() -> list[MaterialEntry | FlexCoreEntry]:
+            selected_manufacturer = selected_text(manufacturer_combo)
+            selected_family = selected_text(family_combo)
+            if is_flex_core:
+                if self.flex_core_catalog is None:
+                    return []
+                return list(
+                    self.flex_core_catalog.filter_entries(
+                        manufacturer=selected_manufacturer,
+                        family=selected_family,
+                    )
+                )
+            return list(
+                self.catalog.filter_entries(
+                    material_type=catalog_material_type_for_dielectric(
+                        str(type_combo.currentData() or material_type)
+                    ),
+                    manufacturer=selected_manufacturer,
+                    family=selected_family,
+                )
+            )
+
+        def populate_constructions(*, selected_id: str | None = None) -> None:
+            material_items: list[tuple[str, str, str]] = []
+            for candidate in available_entries():
+                if isinstance(candidate, FlexCoreEntry):
+                    material_items.append(
+                        (
+                            self._flex_material_choice_label(candidate),
+                            candidate.id,
+                            candidate.construction_label,
+                        )
+                    )
+                elif isinstance(candidate, MaterialEntry):
+                    material_items.append(
+                        (
+                            self._rigid_material_choice_label(candidate),
+                            candidate.id,
+                            candidate.construction,
+                        )
+                    )
+            construction_combo.set_materials(material_items, selected_id=selected_id)
+
+        def populate_families(*, preserve: str | None = None) -> None:
+            selected_manufacturer = selected_text(manufacturer_combo)
+            if is_flex_core:
+                families = (
+                    self.flex_core_catalog.families(manufacturer=selected_manufacturer)
+                    if self.flex_core_catalog is not None
+                    else ([layer.family] if layer.family else [])
+                )
+            else:
+                families = self.catalog.families(
+                    material_type=catalog_material_type_for_dielectric(
+                        str(type_combo.currentData() or material_type)
+                    ),
+                    manufacturer=selected_manufacturer,
+                )
+            self._populate_combo(
+                family_combo,
+                [(value, value) for value in families],
+                selected_data=preserve if preserve in families else None,
+            )
+
+        def populate_manufacturers(*, preserve: str | None = None) -> None:
+            if is_flex_core:
+                manufacturers = (
+                    self.flex_core_catalog.manufacturers()
+                    if self.flex_core_catalog is not None
+                    else ([layer.manufacturer] if layer.manufacturer else [])
+                )
+            else:
+                manufacturers = self.catalog.manufacturers(
+                    material_type=catalog_material_type_for_dielectric(
+                        str(type_combo.currentData() or material_type)
+                    )
+                )
+            self._populate_combo(
+                manufacturer_combo,
+                [(value, value) for value in manufacturers],
+                selected_data=preserve if preserve in manufacturers else None,
+            )
+
+        populate_manufacturers(preserve=manufacturer)
+        populate_families(preserve=family)
+        populate_constructions(selected_id=layer.material_id or None)
+
+        if isinstance(entry, (MaterialEntry, FlexCoreEntry)):
+            frequencies = entry.sorted_frequencies
+            selected_frequency = entry.closest_frequency(layer.selected_freq_ghz)
+        elif isinstance(layer, FlexCoreLayer):
+            frequencies = layer.sorted_frequencies
+            selected_frequency = layer.closest_frequency(layer.selected_freq_ghz)
+        else:
+            frequencies = (
+                [layer.selected_freq_ghz]
+                if layer.selected_freq_ghz is not None
+                else []
+            )
+            selected_frequency = layer.selected_freq_ghz
+        self._populate_combo(
+            frequency_combo,
+            [(self._frequency_label(value), value) for value in frequencies],
+            selected_data=selected_frequency,
+        )
+
+        type_combo.activated.connect(
+            lambda _index: (
+                populate_manufacturers(),
+                populate_families(),
+                populate_constructions(),
+            )
+        )
+        manufacturer_combo.activated.connect(
+            lambda _index: (
+                populate_families(),
+                populate_constructions(),
+            )
+        )
+        family_combo.activated.connect(
+            lambda _index: populate_constructions()
+        )
+        construction_combo.materialSelected.connect(
+            lambda material_id: self._apply_table_material(
+                layer_index,
+                material_id,
+                str(type_combo.currentData() or material_type),
+            )
+        )
+        frequency_combo.activated.connect(
+            lambda _index: self._apply_table_frequency(
+                layer_index,
+                frequency_combo.currentData(),
+            )
+        )
+
+    def _install_copper_table_editors(
+        self,
+        row: int,
+        layer_index: int,
+        layer: CopperLayer,
+    ) -> None:
+        locked = (
+            layer_index in self.locked_copper_indices
+            or (self.is_flex_zone and self._adjacent_flex_core(layer_index) is not None)
+        )
+        copper_types = COPPER_TYPES + FLEX_COPPER_TYPES if self.is_flex_zone else COPPER_TYPES
+        combo = self._new_table_combo(
+            [
+                (copper_type_choice_label(copper_type), copper_type)
+                for copper_type in copper_types
+            ],
+            selected_data=layer.copper_type,
+            enabled=not locked,
+        )
+        combo.activated.connect(
+            lambda _index: self._apply_table_copper_type(
+                layer_index,
+                str(combo.currentData() or layer.copper_type),
+            )
+        )
+        self.table.setCellWidget(row, TABLE_COLUMN_INDEX["material"], combo)
+
+    def _table_edit_targets(self, layer_index: int) -> list[int] | None:
+        if not self._apply_symmetry_enabled():
+            return [layer_index]
+        mirror_index = self.stackup.mirror_index(layer_index)
+        if mirror_index == layer_index:
+            return [layer_index]
+
+        source = self.stackup.layers[layer_index]
+        mirror = self.stackup.layers[mirror_index]
+        compatible = (
+            isinstance(source, CopperLayer)
+            and isinstance(mirror, CopperLayer)
+        ) or (
+            isinstance(source, DielectricLayer)
+            and isinstance(mirror, DielectricLayer)
+        ) or (
+            isinstance(source, FlexCoreLayer)
+            and isinstance(mirror, FlexCoreLayer)
+        )
+        if not compatible:
+            QMessageBox.information(
+                self,
+                "Cannot apply symmetry",
+                "The selected row does not have a compatible mirror layer.",
+            )
+            return None
+
+        locked_indices = (
+            self.locked_copper_indices
+            if isinstance(source, CopperLayer)
+            else self.locked_dielectric_indices
+        )
+        if mirror_index in locked_indices:
+            QMessageBox.information(
+                self,
+                "Cannot apply symmetry",
+                "The mirror layer is controlled by a connected flex part.",
+            )
+            return None
+        return [layer_index, mirror_index]
+
+    def _apply_table_material(
+        self,
+        layer_index: int,
+        material_id: str,
+        material_type: str,
+    ) -> None:
+        if not 0 <= layer_index < len(self.stackup.layers):
+            return
+        current = self.stackup.layers[layer_index]
+        if layer_index in self.locked_dielectric_indices or not is_dielectric_like(current):
+            return
+        if (
+            not self.no_flow_prepreg_editable
+            and (
+                material_type == "no_flow_prepreg"
+                or (
+                    isinstance(current, DielectricLayer)
+                    and is_no_flow_prepreg_type(current.dielectric_type)
+                )
+            )
+        ):
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        if isinstance(current, FlexCoreLayer):
+            if self.flex_core_catalog is None:
+                return
+            entry = self.flex_core_catalog.get(material_id)
+            if entry is None:
+                return
+            updated: DielectricLikeLayer = FlexCoreLayer.from_entry(
+                entry,
+                selected_freq_ghz=current.selected_freq_ghz,
+            )
+        else:
+            entry = self.catalog.get(material_id)
+            if (
+                entry is None
+                or entry.material_type
+                != catalog_material_type_for_dielectric(material_type)
+            ):
+                return
+            updated = DielectricLayer(
+                dielectric_type=material_type,
+                material_id=entry.id,
+                selected_freq_ghz=entry.closest_frequency(current.selected_freq_ghz),
+            )
+        target_indices = self._table_edit_targets(layer_index)
+        if target_indices is None:
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        replacements = {
+            target_index: replace(updated)
+            for target_index in target_indices
+        }
+        bonding_message = self.stackup.bonded_core_bonding_message(replacements)
+        if bonding_message is not None:
+            QMessageBox.information(
+                self,
+                "Cannot place bonded core",
+                bonding_message,
+            )
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        if self.stackup.consecutive_core_pair(replacements) is not None:
+            QMessageBox.information(
+                self,
+                "Cannot place core material",
+                "Rigid Core and Flex Core materials must be separated by Rigid PP.",
+            )
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        for target_index, replacement in replacements.items():
+            self.stackup.layers[target_index] = replacement
+        if isinstance(updated, FlexCoreLayer):
+            for target_index in target_indices:
+                self._sync_flex_core_copper_layers(target_index, updated)
+            self._set_note(
+                "Flex-core material and adjacent copper layers were updated symmetrically."
+                if len(target_indices) > 1
+                else "Flex-core material and adjacent copper layers were updated from the table."
+            )
+            self.flexCoreChanged.emit(updated)
+            self.sharedRegionChanged.emit()
+        else:
+            self._set_note(
+                "Dielectric material and its mirror layer were updated together."
+                if len(target_indices) > 1
+                else "Dielectric material was updated from the table."
+            )
+            if self.is_flex_zone:
+                self.sharedRegionChanged.emit()
+        self._refresh_everything(select_meta=("layer", layer_index))
+
+    def _apply_table_frequency(self, layer_index: int, frequency: object) -> None:
+        if frequency is None or not 0 <= layer_index < len(self.stackup.layers):
+            return
+        current = self.stackup.layers[layer_index]
+        if layer_index in self.locked_dielectric_indices or not is_dielectric_like(current):
+            return
+        if (
+            isinstance(current, DielectricLayer)
+            and is_no_flow_prepreg_type(current.dielectric_type)
+            and not self.no_flow_prepreg_editable
+        ):
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        requested = float(frequency)
+        target_indices = self._table_edit_targets(layer_index)
+        if target_indices is None:
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        actual_by_index: dict[int, float] = {}
+        for target_index in target_indices:
+            target_layer = self.stackup.layers[target_index]
+            if isinstance(target_layer, FlexCoreLayer):
+                actual = target_layer.closest_frequency(requested)
+                updated_layer = replace(
+                    target_layer,
+                    selected_freq_ghz=actual,
+                )
+            else:
+                entry = self._dielectric_entry(target_layer)
+                actual = (
+                    entry.closest_frequency(requested)
+                    if entry is not None
+                    else requested
+                )
+                updated_layer = replace(
+                    target_layer,
+                    selected_freq_ghz=actual,
+                    # Catalog-backed layers must use the Dk/Df values at the
+                    # newly selected frequency. Imported fixed overrides would
+                    # otherwise mask the frequency-dependent catalog data.
+                    dk_override=None if entry is not None else target_layer.dk_override,
+                    df_override=None if entry is not None else target_layer.df_override,
+                )
+            self.stackup.layers[target_index] = updated_layer
+            actual_by_index[target_index] = actual
+        updated = self.stackup.layers[layer_index]
+        if isinstance(updated, FlexCoreLayer):
+            self.flexCoreChanged.emit(updated)
+            self.sharedRegionChanged.emit()
+        selected_actual = actual_by_index[layer_index]
+        self._set_note(
+            (
+                f"Dielectric frequency changed symmetrically to "
+                f"{self._frequency_label(selected_actual)}; Dk and Df were updated."
+            )
+            if len(target_indices) > 1
+            else (
+                f"Dielectric frequency changed to "
+                f"{self._frequency_label(selected_actual)}; Dk and Df were updated."
+            )
+        )
+        self._refresh_everything(select_meta=("layer", layer_index))
+
+    def _apply_table_copper_type(self, layer_index: int, copper_type: str) -> None:
+        if not 0 <= layer_index < len(self.stackup.layers):
+            return
+        current = self.stackup.layers[layer_index]
+        if not isinstance(current, CopperLayer):
+            return
+        if (
+            layer_index in self.locked_copper_indices
+            or (self.is_flex_zone and self._adjacent_flex_core(layer_index) is not None)
+        ):
+            return
+        target_indices = self._table_edit_targets(layer_index)
+        if target_indices is None:
+            self._refresh_everything(select_meta=("layer", layer_index))
+            return
+        for target_index in target_indices:
+            target_layer = self.stackup.layers[target_index]
+            if not isinstance(target_layer, CopperLayer):
+                continue
+            updated = replace(target_layer, copper_type=copper_type)
+            updated.sync_roughness()
+            self.stackup.layers[target_index] = updated
+        self._set_note(
+            "Copper type and roughness were updated symmetrically."
+            if len(target_indices) > 1
+            else "Copper type and roughness were updated from the table."
+        )
+        self._refresh_everything(select_meta=("layer", layer_index))
 
     def _table_rows(self) -> list[tuple[tuple[str, int | str], tuple[str, ...], str]]:
         rows: list[tuple[tuple[str, int | str], tuple[str, ...], str]] = []
@@ -1854,8 +2937,9 @@ class StackupEditorWindow(QMainWindow):
                         rows.append((("layer", index), values, "copper"))
                     elif isinstance(layer, FlexCoreLayer):
                         dk_text, df_text = self._dielectric_dk_df_text(layer)
+                        layer_name = self.flex_core_row_labels.get(index, "Flex Core")
                         values = (
-                            "Flex Core",
+                            layer_name,
                             "Flex Core",
                             self._dielectric_thickness_text(layer),
                             "",
@@ -1887,6 +2971,7 @@ class StackupEditorWindow(QMainWindow):
                     rows.append((("gap", gap_label), self._air_gap_row_values(sandwich_index), "gap"))
         else:
             rows.append((("soldermask", "top"), self._soldermask_row_values("top", self.stackup.soldermask), "soldermask"))
+            dielectric_number = 0
             for index, layer in enumerate(self.stackup.layers):
                 if isinstance(layer, CopperLayer):
                     values = (
@@ -1905,8 +2990,9 @@ class StackupEditorWindow(QMainWindow):
                     rows.append((("layer", index), values, "copper"))
                 elif isinstance(layer, FlexCoreLayer):
                     dk_text, df_text = self._dielectric_dk_df_text(layer)
+                    layer_name = self.flex_core_row_labels.get(index, "Flex Core")
                     values = (
-                        "Flex Core",
+                        layer_name,
                         "Flex Core",
                         self._dielectric_thickness_text(layer),
                         "",
@@ -1920,10 +3006,19 @@ class StackupEditorWindow(QMainWindow):
                     )
                     rows.append((("layer", index), values, "dielectric"))
                 else:
+                    dielectric_number += 1
                     dk_text, df_text = self._dielectric_dk_df_text(layer)
+                    layer_name = self.dielectric_row_labels.get(
+                        index,
+                        (
+                            f"{self.dielectric_row_prefix}Dielectric{dielectric_number}"
+                            if self.dielectric_row_prefix
+                            else f"Dielectric {self.stackup.dielectric_layer_number(index)}"
+                        ),
+                    )
                     values = (
-                        f"Dielectric {self.stackup.dielectric_layer_number(index)}",
-                        layer.dielectric_type.title(),
+                        layer_name,
+                        dielectric_type_display_name(layer.dielectric_type),
                         self._dielectric_thickness_text(layer),
                         "",
                         self._dielectric_manufacturer_text(layer),
@@ -1969,9 +3064,59 @@ class StackupEditorWindow(QMainWindow):
         if self._table_refreshing or self._ui_loading:
             return
         meta = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(meta, tuple) or not meta or meta[0] != "soldermask":
+        if not isinstance(meta, tuple) or not meta:
             return
         column_key = TABLE_COLUMNS[item.column()][0]
+        if meta[0] == "layer" and column_key == "thickness":
+            layer_index = int(meta[1])
+            if not 0 <= layer_index < len(self.stackup.layers):
+                return
+            layer = self.stackup.layers[layer_index]
+            locked = (
+                layer_index in self.locked_copper_indices
+                or (
+                    self.is_flex_zone
+                    and self._adjacent_flex_core(layer_index) is not None
+                )
+            )
+            if not isinstance(layer, CopperLayer) or locked:
+                self._refresh_everything(select_meta=meta)
+                return
+            try:
+                unit = thickness_unit_for_layer(self.display_unit, is_copper=True)
+                thickness_mm = from_display(float(item.text().strip()), unit)
+                if thickness_mm <= 0:
+                    raise ValueError
+                target_indices = self._table_edit_targets(layer_index)
+                if target_indices is None:
+                    self._refresh_everything(select_meta=meta)
+                    return
+                snapped_thickness = snap_copper_thickness_mm(thickness_mm)
+                for target_index in target_indices:
+                    target_layer = self.stackup.layers[target_index]
+                    if not isinstance(target_layer, CopperLayer):
+                        continue
+                    updated = replace(
+                        target_layer,
+                        thickness_mm=snapped_thickness,
+                    )
+                    updated.sync_roughness()
+                    self.stackup.layers[target_index] = updated
+                self._set_note(
+                    "Copper thickness was updated symmetrically."
+                    if len(target_indices) > 1
+                    else "Copper thickness was updated from the table."
+                )
+            except ValueError:
+                QMessageBox.warning(
+                    self,
+                    "Invalid value",
+                    "Enter a valid positive copper thickness.",
+                )
+            self._refresh_everything(select_meta=meta)
+            return
+        if meta[0] != "soldermask":
+            return
         if column_key not in {"thickness", "dk", "df"}:
             return
         selected_meta = meta
@@ -2032,14 +3177,14 @@ class StackupEditorWindow(QMainWindow):
             precision = UNIT_PRECISION[unit]
             self.detail_title_label.setText(f"Editing {self._copper_label(index)}")
             with QSignalBlocker(self.copper_type_combo):
-                self.copper_type_combo.setCurrentText(layer.copper_type)
+                set_selected_copper_type(self.copper_type_combo, layer.copper_type)
             with QSignalBlocker(self.copper_thickness_edit):
                 self.copper_thickness_edit.setText(f"{to_display(layer.thickness_mm, unit):.{precision}f}")
             self.copper_roughness_label.setText(format_roughness_um(layer.roughness_um))
             locked = index in self.locked_copper_indices or (self.is_flex_zone and self._adjacent_flex_core(index) is not None)
             self._set_copper_editor_locked(locked)
             if locked and not self.is_flex_zone:
-                self._set_note("This shared flex copper is editable from the flex zone only.")
+                self._set_note(self.locked_copper_note)
             self.editor_stack.setCurrentWidget(self.copper_page)
             return
 
@@ -2052,7 +3197,9 @@ class StackupEditorWindow(QMainWindow):
             family = layer.family
             selected_id = layer.material_id
         else:
-            self.detail_title_label.setText(f"Editing {layer.dielectric_type.title()} dielectric")
+            self.detail_title_label.setText(
+                f"Editing {dielectric_type_display_name(layer.dielectric_type)} dielectric"
+            )
             prefer_blank = entry is None
             manufacturer = entry.manufacturer if entry is not None else None
             family = entry.family if entry is not None else None
@@ -2098,8 +3245,8 @@ class StackupEditorWindow(QMainWindow):
         self.apply_copper_button.setEnabled(not locked)
         self.apply_sym_copper_button.setEnabled(not locked and not self.is_flex_zone)
         if locked:
-            self.copper_type_combo.setToolTip("Copper type is driven by the selected flex-core material.")
-            self.copper_thickness_edit.setToolTip("Copper thickness is driven by the selected flex-core material.")
+            self.copper_type_combo.setToolTip(self.locked_copper_note)
+            self.copper_thickness_edit.setToolTip(self.locked_copper_note)
         else:
             self.copper_type_combo.setToolTip("")
             self.copper_thickness_edit.setToolTip("")
@@ -2176,6 +3323,7 @@ class StackupEditorWindow(QMainWindow):
                 self.insert_flex_sandwich_button.setEnabled(True)
             if self.remove_flex_sandwich_button is not None:
                 self.remove_flex_sandwich_button.setEnabled(self.stackup.flex_core_count() > 1)
+            self._sync_command_menu_state()
             return
         if self.structure_locked:
             index = self._selected_index()
@@ -2185,6 +3333,7 @@ class StackupEditorWindow(QMainWindow):
                 self.add_material_above_button.setEnabled(False)
                 self.add_material_below_button.setEnabled(False)
                 self.remove_button.setEnabled(False)
+                self._sync_command_menu_state()
                 return
             layer = self.stackup.layers[index]
             if isinstance(layer, CopperLayer):
@@ -2197,11 +3346,25 @@ class StackupEditorWindow(QMainWindow):
                     and self._removal_outside_locked_structure(index)
                 )
             elif isinstance(layer, DielectricLayer):
-                can_insert_material = self._can_insert_material_at(index)
                 self.add_above_button.setEnabled(False)
                 self.add_below_button.setEnabled(False)
-                self.add_material_above_button.setEnabled(can_insert_material)
-                self.add_material_below_button.setEnabled(can_insert_material)
+                if layer.dielectric_type == "core":
+                    can_add_above = False
+                    can_add_below = False
+                elif self._apply_symmetry_enabled():
+                    can_add_above = self._can_insert_material_at(index)
+                    can_add_below = can_add_above
+                else:
+                    can_add_above = self._can_insert_single_material_at(
+                        index,
+                        index,
+                    )
+                    can_add_below = self._can_insert_single_material_at(
+                        index,
+                        index + 1,
+                    )
+                self.add_material_above_button.setEnabled(can_add_above)
+                self.add_material_below_button.setEnabled(can_add_below)
                 self.remove_button.setEnabled(self._can_remove_material_at(index))
             else:
                 self.add_above_button.setEnabled(False)
@@ -2209,6 +3372,7 @@ class StackupEditorWindow(QMainWindow):
                 self.add_material_above_button.setEnabled(False)
                 self.add_material_below_button.setEnabled(False)
                 self.remove_button.setEnabled(False)
+            self._sync_command_menu_state()
             return
         index = self._selected_index()
         if index is None:
@@ -2217,6 +3381,7 @@ class StackupEditorWindow(QMainWindow):
             self.add_material_above_button.setEnabled(False)
             self.add_material_below_button.setEnabled(False)
             self.remove_button.setEnabled(False)
+            self._sync_command_menu_state()
             return
         layer = self.stackup.layers[index]
         if isinstance(layer, CopperLayer):
@@ -2225,13 +3390,21 @@ class StackupEditorWindow(QMainWindow):
             self.add_material_above_button.setEnabled(False)
             self.add_material_below_button.setEnabled(False)
             self.remove_button.setEnabled(self._can_remove_symmetric_copper_pair(index))
-        else:
+        elif isinstance(layer, DielectricLayer):
             can_remove, _reason = self.stackup.can_remove_symmetric_dielectric(index)
+            can_insert_material = layer.dielectric_type != "core"
             self.add_above_button.setEnabled(False)
             self.add_below_button.setEnabled(False)
-            self.add_material_above_button.setEnabled(True)
-            self.add_material_below_button.setEnabled(True)
+            self.add_material_above_button.setEnabled(can_insert_material)
+            self.add_material_below_button.setEnabled(can_insert_material)
             self.remove_button.setEnabled(can_remove)
+        else:
+            self.add_above_button.setEnabled(False)
+            self.add_below_button.setEnabled(False)
+            self.add_material_above_button.setEnabled(False)
+            self.add_material_below_button.setEnabled(False)
+            self.remove_button.setEnabled(False)
+        self._sync_command_menu_state()
 
     def _locked_structure_bounds(self) -> tuple[int, int] | None:
         if self.protected_structure_bounds is not None:
@@ -2244,10 +3417,28 @@ class StackupEditorWindow(QMainWindow):
     def _can_remove_symmetric_copper_pair(self, index: int) -> bool:
         if not self.stackup.can_remove_copper(index):
             return False
+        if (
+            self.allowed_copper_removal_indices is not None
+            and index not in self.allowed_copper_removal_indices
+        ):
+            return False
         mirror = self.stackup.mirror_index(index)
         if mirror == index or not isinstance(self.stackup.layers[mirror], CopperLayer):
             return False
-        return self.stackup.copper_count() - 2 >= self.minimum_copper_count
+        if self.stackup.copper_count() - 2 < self.minimum_copper_count:
+            return False
+        return self._symmetric_copper_removal_bonding_message(index) is None
+
+    def _symmetric_copper_removal_bonding_message(
+        self,
+        index: int,
+    ) -> str | None:
+        candidate = deepcopy(self.stackup)
+        try:
+            candidate.remove_symmetric_copper_pair(index)
+        except (IndexError, ValueError):
+            return None
+        return candidate.bonded_core_bonding_message()
 
     def _boundary_outside_locked_structure(self, boundary: int) -> bool:
         bounds = self._locked_structure_bounds()
@@ -2266,6 +3457,11 @@ class StackupEditorWindow(QMainWindow):
             return index in self.material_insertion_allowed_indices and mirror in self.material_insertion_allowed_indices
         return self._boundary_outside_locked_structure(index) or self._boundary_outside_locked_structure(index + 1)
 
+    def _can_insert_single_material_at(self, index: int, boundary: int) -> bool:
+        if self.material_insertion_allowed_indices is not None:
+            return index in self.material_insertion_allowed_indices
+        return self._boundary_outside_locked_structure(boundary)
+
     def _can_remove_material_at(self, index: int) -> bool:
         allowed, _reason = self.stackup.can_remove_symmetric_dielectric(index)
         if not allowed:
@@ -2280,6 +3476,11 @@ class StackupEditorWindow(QMainWindow):
         return self.stackup.consecutive_core_pair(removed_indices=affected_indices) is None
 
     def _removal_outside_locked_structure(self, index: int) -> bool:
+        if (
+            isinstance(self.stackup.layers[index], CopperLayer)
+            and self.allowed_copper_removal_indices is not None
+        ):
+            return index in self.allowed_copper_removal_indices
         bounds = self._locked_structure_bounds()
         if bounds is None:
             return True
@@ -2398,7 +3599,7 @@ class StackupEditorWindow(QMainWindow):
         family: str | None,
     ) -> list[MaterialEntry]:
         items = self.catalog.filter_entries(
-            material_type=material_type,
+            material_type=catalog_material_type_for_dielectric(material_type),
             manufacturer=manufacturer or None,
             family=family or None,
         )
@@ -2459,7 +3660,9 @@ class StackupEditorWindow(QMainWindow):
         if material_type == "flex_core":
             manufacturers = self.flex_core_catalog.manufacturers() if self.flex_core_catalog is not None else []
         else:
-            manufacturers = self.catalog.manufacturers(material_type=material_type)
+            manufacturers = self.catalog.manufacturers(
+                material_type=catalog_material_type_for_dielectric(material_type)
+            )
         items = [(manufacturer, manufacturer) for manufacturer in manufacturers]
         self._populate_combo(
             self.dielectric_manufacturer_combo,
@@ -2479,7 +3682,10 @@ class StackupEditorWindow(QMainWindow):
         if material_type == "flex_core":
             families = self.flex_core_catalog.families(manufacturer=manufacturer) if self.flex_core_catalog is not None else []
         else:
-            families = self.catalog.families(material_type=material_type, manufacturer=manufacturer)
+            families = self.catalog.families(
+                material_type=catalog_material_type_for_dielectric(material_type),
+                manufacturer=manufacturer,
+            )
         items = [(family, family) for family in families]
         self._populate_combo(self.dielectric_family_combo, items, selected_data=selected, allow_blank=prefer_blank)
 
@@ -2558,8 +3764,8 @@ class StackupEditorWindow(QMainWindow):
         freq_ghz = self._selected_layer_frequency(entry)
         self._set_readonly_material_details(entry, freq_ghz)
 
-    def _preview_copper_profile(self) -> None:
-        copper_type = self.copper_type_combo.currentText().strip()
+    def _preview_copper_profile(self, *_args) -> None:
+        copper_type = selected_copper_type(self.copper_type_combo)
         if copper_type:
             self.copper_roughness_label.setText(format_roughness_um(copper_roughness_um(copper_type)))
         else:
@@ -2686,7 +3892,7 @@ class StackupEditorWindow(QMainWindow):
         copper = CopperLayer(
             uid=current_layer.uid if current_layer is not None else "",
             thickness_mm=thickness_mm,
-            copper_type=self.copper_type_combo.currentText(),
+            copper_type=selected_copper_type(self.copper_type_combo),
             trace_width_mm=current_layer.trace_width_mm if current_layer is not None else None,
             trace_spacing_mm=current_layer.trace_spacing_mm if current_layer is not None else None,
             target_impedance_ohm=current_layer.target_impedance_ohm if current_layer is not None else None,
@@ -2703,14 +3909,30 @@ class StackupEditorWindow(QMainWindow):
             return
         if not is_dielectric_like(layer):
             return
+        if (
+            isinstance(layer, DielectricLayer)
+            and is_no_flow_prepreg_type(layer.dielectric_type)
+            and not self.no_flow_prepreg_editable
+        ):
+            return
         updated_layer = self._edited_dielectric_from_controls()
         if updated_layer is None:
+            return
+        bonding_message = self.stackup.bonded_core_bonding_message(
+            {index: updated_layer}
+        )
+        if bonding_message is not None:
+            QMessageBox.information(
+                self,
+                "Cannot place bonded core",
+                bonding_message,
+            )
             return
         if self.stackup.consecutive_core_pair({index: updated_layer}) is not None:
             QMessageBox.information(
                 self,
                 "Cannot place core material",
-                "Rigid Core and Flex Core materials must always be separated by Rigid PP.",
+                "Rigid Core and Flex Core materials must be separated by Rigid PP.",
             )
             return
         self.stackup.layers[index] = updated_layer
@@ -2736,11 +3958,20 @@ class StackupEditorWindow(QMainWindow):
         if updated_layer is None:
             return
         mirror_index = self.stackup.mirror_index(index)
-        if self.stackup.consecutive_core_pair({index: updated_layer, mirror_index: updated_layer}) is not None:
+        replacements = {index: updated_layer, mirror_index: updated_layer}
+        bonding_message = self.stackup.bonded_core_bonding_message(replacements)
+        if bonding_message is not None:
+            QMessageBox.information(
+                self,
+                "Cannot place bonded core",
+                bonding_message,
+            )
+            return
+        if self.stackup.consecutive_core_pair(replacements) is not None:
             QMessageBox.information(
                 self,
                 "Cannot place core material",
-                "Rigid Core and Flex Core materials must always be separated by Rigid PP.",
+                "Rigid Core and Flex Core materials must be separated by Rigid PP.",
             )
             return
         try:
@@ -2810,7 +4041,9 @@ class StackupEditorWindow(QMainWindow):
         self._refresh_everything(select_meta=("layer", index))
 
     def _default_dielectric(self, dielectric_type: str = "prepreg") -> DielectricLayer:
-        entry = self.catalog.first_for(dielectric_type)
+        entry = self.catalog.first_for(
+            catalog_material_type_for_dielectric(dielectric_type)
+        )
         return DielectricLayer(
             dielectric_type=dielectric_type,
             material_id=entry.id,
@@ -2858,8 +4091,29 @@ class StackupEditorWindow(QMainWindow):
         layer = self.stackup.layers[index]
         if not isinstance(layer, DielectricLayer):
             return
-        if self.structure_locked and not self._can_insert_material_at(index):
-            self._set_note("Rigid material cannot be inserted inside a reserved flex-core span.")
+        if (
+            is_no_flow_prepreg_type(layer.dielectric_type)
+            and not self.no_flow_prepreg_editable
+        ):
+            return
+        if layer.dielectric_type == "core":
+            self._set_note("Material cannot be added directly above or below a Rigid Core.")
+            return
+        symmetric = self._apply_symmetry_enabled()
+        if self.structure_locked:
+            can_insert = (
+                self._can_insert_material_at(index)
+                if symmetric
+                else self._can_insert_single_material_at(index, index)
+            )
+            if not can_insert:
+                self._set_note("Rigid material cannot be inserted inside a reserved flex-core span.")
+                return
+        if not symmetric:
+            self.stackup.layers.insert(index, self._default_dielectric("prepreg"))
+            self._set_note("One Rigid PP material was added above the selected layer.")
+            self._refresh_everything(select_meta=("layer", index))
+            self.structureChanged.emit()
             return
         original_is_top_half = index <= self.stackup.mirror_index(index)
         top_index, bottom_index = self.stackup.add_symmetric_dielectrics(
@@ -2878,12 +4132,29 @@ class StackupEditorWindow(QMainWindow):
         layer = self.stackup.layers[index]
         if not isinstance(layer, DielectricLayer):
             return
-        if self.structure_locked and not self._can_insert_material_at(index):
-            self._set_note("Rigid material cannot be inserted inside a reserved flex-core span.")
+        if layer.dielectric_type == "core":
+            self._set_note("Material cannot be added directly above or below a Rigid Core.")
+            return
+        symmetric = self._apply_symmetry_enabled()
+        boundary = index + 1
+        if self.structure_locked:
+            can_insert = (
+                self._can_insert_material_at(index)
+                if symmetric
+                else self._can_insert_single_material_at(index, boundary)
+            )
+            if not can_insert:
+                self._set_note("Rigid material cannot be inserted inside a reserved flex-core span.")
+                return
+        if not symmetric:
+            self.stackup.layers.insert(boundary, self._default_dielectric("prepreg"))
+            self._set_note("One Rigid PP material was added below the selected layer.")
+            self._refresh_everything(select_meta=("layer", boundary))
+            self.structureChanged.emit()
             return
         original_is_top_half = index <= self.stackup.mirror_index(index)
         top_index, bottom_index = self.stackup.add_symmetric_dielectrics(
-            index + 1,
+            boundary,
             dielectric=self._default_dielectric("prepreg"),
         )
         selected_index = top_index if original_is_top_half else bottom_index
@@ -2895,6 +4166,10 @@ class StackupEditorWindow(QMainWindow):
         index = self._selected_index()
         if index is None:
             return
+        if not self._apply_symmetry_enabled():
+            self._set_note("Enable Apply Symmetry before removing a symmetric pair.")
+            self._sync_command_menu_state()
+            return
         original_is_top_half = index <= self.stackup.mirror_index(index)
         layer = self.stackup.layers[index]
         if isinstance(layer, CopperLayer):
@@ -2902,7 +4177,16 @@ class StackupEditorWindow(QMainWindow):
                 self._set_note("Shared rigid-flex copper layers cannot be removed from the rigid zone.")
                 return
             if not self._can_remove_symmetric_copper_pair(index):
-                if self.stackup.copper_count() - 2 < self.minimum_copper_count:
+                bonding_message = self._symmetric_copper_removal_bonding_message(
+                    index
+                )
+                if bonding_message is not None:
+                    QMessageBox.information(
+                        self,
+                        "Cannot remove layer",
+                        bonding_message,
+                    )
+                elif self.stackup.copper_count() - 2 < self.minimum_copper_count:
                     self._set_note(
                         "The rigid zone must keep one more symmetric copper pair than its linked flex span."
                     )
@@ -2940,7 +4224,11 @@ class StackupEditorWindow(QMainWindow):
     def _open_impedance_dialog(self) -> None:
         logger.info("Opening impedance dialog")
         if self._impedance_dialog is None:
-            self._impedance_dialog = CalculateImpedanceDialog(self)
+            dialog_parent = self.left_pane.window()
+            self._impedance_dialog = CalculateImpedanceDialog(
+                self,
+                parent=dialog_parent if dialog_parent is not self else self,
+            )
             app = QApplication.instance()
             if app is not None:
                 self._impedance_dialog.setStyleSheet(app.styleSheet())
@@ -2951,6 +4239,28 @@ class StackupEditorWindow(QMainWindow):
         self._impedance_dialog.activateWindow()
 
     def _adjacent_reference_indices(self, copper_index: int) -> tuple[int | None, int | None]:
+        if self.is_flex_zone:
+            core_above = copper_index - 1
+            reference_above = copper_index - 2
+            if (
+                core_above >= 0
+                and reference_above >= 0
+                and isinstance(self.stackup.layers[core_above], FlexCoreLayer)
+                and isinstance(self.stackup.layers[reference_above], CopperLayer)
+            ):
+                return reference_above, None
+
+            core_below = copper_index + 1
+            reference_below = copper_index + 2
+            if (
+                core_below < len(self.stackup.layers)
+                and reference_below < len(self.stackup.layers)
+                and isinstance(self.stackup.layers[core_below], FlexCoreLayer)
+                and isinstance(self.stackup.layers[reference_below], CopperLayer)
+            ):
+                return None, reference_below
+            return None, None
+
         ref_above = None
         for candidate in range(copper_index - 1, -1, -1):
             if isinstance(self.stackup.layers[candidate], CopperLayer):
@@ -3051,6 +4361,10 @@ class StackupEditorWindow(QMainWindow):
             return
         try:
             content = Path(source).read_text(encoding="utf-8")
+            mode_warning = stackup_import_mode_warning(content, rigid_flex_mode=False)
+            if mode_warning is not None:
+                QMessageBox.warning(self, "Stackup type mismatch", mode_warning)
+                return
             imported_stackup, imported_unit, imported_workspace = import_stackup_text(content, self.catalog)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             QMessageBox.warning(self, "Import failed", str(exc))
@@ -3086,6 +4400,10 @@ class StackupEditorWindow(QMainWindow):
             return
         try:
             content = Path(source).read_text(encoding="utf-8")
+            mode_warning = stackup_import_mode_warning(content, rigid_flex_mode=False)
+            if mode_warning is not None:
+                QMessageBox.warning(self, "Stackup type mismatch", mode_warning)
+                return
             imported_stackup = import_stackup_xpedition(content, self.catalog)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             QMessageBox.warning(self, "Import failed", str(exc))

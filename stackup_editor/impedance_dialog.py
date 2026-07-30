@@ -418,6 +418,17 @@ class ImpedanceSectionPanel(QWidget):
         above: bool,
     ) -> list[tuple[str, str | None]]:
         options: list[tuple[str, str | None]] = [("Auto", None)]
+        if host.is_flex_zone:
+            auto_above, auto_below = host._adjacent_reference_indices(copper_index)
+            reference_index = auto_above if above else auto_below
+            if reference_index is not None:
+                reference = host.stackup.layers[reference_index]
+                if isinstance(reference, CopperLayer):
+                    options.append(
+                        (self._copper_ref_label(host, reference_index), reference.uid)
+                    )
+            return options
+
         for index, layer in copper_stackup_entries(host.stackup):
             if index == copper_index:
                 continue

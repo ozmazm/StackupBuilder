@@ -163,6 +163,18 @@ PDF_SOURCES = {
         "variant": "S1000-2M/S1000-2MB",
         "parser": "shengyi",
     },
+    "ARLON_51N.pdf": {
+        "manufacturer": "Arlon",
+        "series": "51N",
+        "family": "51N",
+        "parser": "no_flow",
+    },
+    "TU-84P NF.PDF": {
+        "manufacturer": "TUC",
+        "series": "TU-84P NF",
+        "family": "TU-84P NF",
+        "parser": "no_flow",
+    },
 }
 
 
@@ -219,6 +231,8 @@ def main() -> None:
             parsed_records = parse_nelco_table_pdf(pdf_path, source)
         elif parser == "shengyi":
             parsed_records = parse_shengyi_table_pdf(pdf_path, source)
+        elif parser == "no_flow":
+            parsed_records = parse_no_flow_pdf(pdf_path, source)
         else:
             parsed_records = []
 
@@ -273,6 +287,84 @@ def record_identity(record: MaterialRecord) -> tuple[object, ...]:
         round(record.thickness_mm, 6),
         record.classification or "",
     )
+
+
+def parse_no_flow_pdf(
+    pdf_path: Path,
+    source: dict[str, str],
+) -> list[MaterialRecord]:
+    """Return the catalog rows verified from the local no-flow datasheets."""
+    common = {
+        "manufacturer": source["manufacturer"],
+        "series": source["series"],
+        "family": source["family"],
+        "material_type": "no_flow_prepreg",
+        "source_pdf": pdf_path.name,
+        "classification": "No-Flow",
+        "plies": 1,
+    }
+    if pdf_path.name == "ARLON_51N.pdf":
+        rows = (
+            ("51N0672", "106", 72.0, 0.0022),
+            ("51N0666", "106", 65.0, 0.0017),
+            ("51N8065", "1080", 65.0, 0.0032),
+            ("51N8060", "1080", 60.0, 0.0027),
+        )
+        return [
+            MaterialRecord(
+                id=f"arlon-51n-no-flow-{part.lower()}",
+                variant=part,
+                construction=style,
+                resin_content_pct=resin,
+                thickness_mm=thickness_in * 25.4,
+                thickness_in=thickness_in,
+                thickness_um=thickness_in * 25_400.0,
+                style=style,
+                dk_by_freq_ghz={"0.001": 4.2, "1.0": 4.1},
+                df_by_freq_ghz={"0.001": 0.02, "1.0": 0.02},
+                reference_freq_ghz=1.0,
+                reference_dk=4.1,
+                reference_df=0.02,
+                max_freq_ghz=1.0,
+                notes=(
+                    "51N low-flow prepreg availability and typical electrical "
+                    "properties verified from ARLON_51N.pdf; flow range 60-120 mil."
+                ),
+                **common,
+            )
+            for part, style, resin, thickness_in in rows
+        ]
+
+    if pdf_path.name == "TU-84P NF.PDF":
+        rows = (
+            ("106", 0.002, 0.05),
+            ("1080", 0.003, 0.08),
+        )
+        return [
+            MaterialRecord(
+                id=f"tuc-tu-84p-nf-no-flow-{style}",
+                variant="TU-84P NF",
+                construction=style,
+                resin_content_pct=50.0,
+                thickness_mm=thickness_mm,
+                thickness_in=thickness_in,
+                thickness_um=thickness_mm * 1000.0,
+                style=style,
+                dk_by_freq_ghz={"1.0": 4.4, "5.0": 4.5, "10.0": 4.4},
+                df_by_freq_ghz={"1.0": 0.010, "5.0": 0.014, "10.0": 0.015},
+                reference_freq_ghz=10.0,
+                reference_dk=4.4,
+                reference_df=0.015,
+                max_freq_ghz=10.0,
+                notes=(
+                    "TU-84P NF no-flow prepreg standard availability verified "
+                    "from TU-84P NF.PDF. Dk/Df values are specified at RC 50%."
+                ),
+                **common,
+            )
+            for style, thickness_in, thickness_mm in rows
+        ]
+    return []
 
 
 def parse_isola_table_pdf(pdf_path: Path, source: dict[str, str]) -> list[MaterialRecord]:

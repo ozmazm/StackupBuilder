@@ -17,7 +17,13 @@ from pathlib import Path
 from typing import Any
 
 from stackup_editor.catalog import MaterialCatalog
-from stackup_editor.models import CopperLayer, DielectricLayer, Stackup
+from stackup_editor.models import (
+    CopperLayer,
+    DielectricLikeLayer,
+    FlexCoreLayer,
+    Stackup,
+    is_dielectric_like,
+)
 
 DEFAULT_SIGMA_S_PER_M = 5.8e7
 DEFAULT_SWEEP_START_GHZ = 0.1
@@ -34,6 +40,8 @@ DEFAULT_ADAPTIVE_MAX_NODES = 20_000
 DEFAULT_ADAPTIVE_MIN_PASSES = 2
 DEFAULT_INITIAL_GRID = 20
 DEFAULT_TARGET_WIDTH_TOLERANCE = 0.001
+DEFAULT_WIDTH_SEARCH_MIN_MM = 0.005
+DEFAULT_WIDTH_SEARCH_MAX_MM = 5.0
 DEFAULT_WIDTH_SEARCH_REFINE_ITERATIONS = 12
 DEFAULT_IMPEDANCE_PLOT_MIN_MIL = 2.0
 DEFAULT_IMPEDANCE_PLOT_MAX_MIL = 30.0
@@ -88,13 +96,17 @@ def _find_adjacent_copper(stackup: Stackup, index: int) -> tuple[int | None, int
     return previous_index, next_index
 
 
-def _dielectric_layers_between(stackup: Stackup, start_index: int | None, end_index: int | None) -> list[tuple[int, DielectricLayer]]:
+def _dielectric_layers_between(
+    stackup: Stackup,
+    start_index: int | None,
+    end_index: int | None,
+) -> list[tuple[int, DielectricLikeLayer]]:
     if start_index is None or end_index is None:
         return []
-    result: list[tuple[int, DielectricLayer]] = []
+    result: list[tuple[int, DielectricLikeLayer]] = []
     for index in range(start_index + 1, end_index):
         layer = stackup.layers[index]
-        if isinstance(layer, DielectricLayer):
+        if is_dielectric_like(layer):
             result.append((index, layer))
     return result
 
@@ -102,7 +114,7 @@ def _dielectric_layers_between(stackup: Stackup, start_index: int | None, end_in
 def aggregate_dielectrics(
     stackup: Stackup,
     catalog: MaterialCatalog,
-    dielectric_layers: list[tuple[int, DielectricLayer]],
+    dielectric_layers: list[tuple[int, DielectricLikeLayer]],
 ) -> DielectricAggregate | None:
     if not dielectric_layers:
         return None
@@ -134,6 +146,60 @@ def aggregate_dielectrics(
         average_freq_ghz=weighted_freq / total_thickness,
         layer_count=len(dielectric_layers),
     )
+
+
+def aggregate_coverlay(stackup: Stackup) -> DielectricAggregate | None:
+    coverlay = stackup.coverlay
+    if coverlay is None:
+        return None
+
+    total_thickness = 0.0
+    weighted_dk = 0.0
+    weighted_df = 0.0
+    weighted_freq = 0.0
+    layer_count = 0
+    for component in ("adhesive", "pi"):
+        thickness_mm = coverlay.component_thickness_mm(component)
+        if thickness_mm <= 0:
+            continue
+        freq_ghz = coverlay.component_frequency_ghz(component)
+        dk, df = coverlay.component_dk_df(component, freq_ghz)
+        if freq_ghz is None or dk is None or df is None:
+            raise FieldSolverBridgeError(
+                f"Coverlay {component} is missing frequency, Dk, or Df information."
+            )
+        total_thickness += thickness_mm
+        weighted_dk += thickness_mm * dk
+        weighted_df += thickness_mm * df
+        weighted_freq += thickness_mm * freq_ghz
+        layer_count += 1
+
+    if total_thickness <= 0 or layer_count == 0:
+        return None
+    return DielectricAggregate(
+        total_thickness_mm=total_thickness,
+        effective_dk=weighted_dk / total_thickness,
+        average_df=weighted_df / total_thickness,
+        average_freq_ghz=weighted_freq / total_thickness,
+        layer_count=layer_count,
+    )
+
+
+def _flex_core_between_selected_and_reference(
+    stackup: Stackup,
+    copper_index: int,
+) -> list[tuple[int, DielectricLikeLayer]]:
+    before = copper_index - 1
+    after = copper_index + 1
+    if before >= 0 and isinstance(stackup.layers[before], FlexCoreLayer):
+        reference_index = copper_index - 2
+        if reference_index >= 0 and isinstance(stackup.layers[reference_index], CopperLayer):
+            return [(before, stackup.layers[before])]
+    if after < len(stackup.layers) and isinstance(stackup.layers[after], FlexCoreLayer):
+        reference_index = copper_index + 2
+        if reference_index < len(stackup.layers) and isinstance(stackup.layers[reference_index], CopperLayer):
+            return [(after, stackup.layers[after])]
+    return []
 
 
 def _weighted_reference_frequency_ghz(*aggregates: DielectricAggregate | None) -> float:
@@ -170,20 +236,30 @@ def build_solver_request(
     if not isinstance(selected, CopperLayer):
         raise FieldSolverBridgeError("Selected row is not a copper layer.")
 
-    auto_previous, auto_next = _find_adjacent_copper(stackup, copper_index)
-    previous_copper = ref_above_index if ref_above_index is not None else auto_previous
-    next_copper = ref_below_index if ref_below_index is not None else auto_next
-    top_dielectrics = _dielectric_layers_between(stackup, previous_copper, copper_index)
-    bottom_dielectrics = _dielectric_layers_between(stackup, copper_index, next_copper)
+    is_flex_stackup = stackup.mode == "flex"
+    if is_flex_stackup:
+        flex_core_layers = _flex_core_between_selected_and_reference(stackup, copper_index)
+        top_dielectrics: list[tuple[int, DielectricLikeLayer]] = []
+        bottom_dielectrics = flex_core_layers
+    else:
+        auto_previous, auto_next = _find_adjacent_copper(stackup, copper_index)
+        previous_copper = ref_above_index if ref_above_index is not None else auto_previous
+        next_copper = ref_below_index if ref_below_index is not None else auto_next
+        top_dielectrics = _dielectric_layers_between(stackup, previous_copper, copper_index)
+        bottom_dielectrics = _dielectric_layers_between(stackup, copper_index, next_copper)
 
     copper_number = stackup.copper_layer_number(copper_index)
     total_copper = stackup.copper_count()
     is_top_outer = copper_number == 1
     is_bottom_outer = copper_number == total_copper
-    is_outer = is_top_outer or is_bottom_outer
+    is_outer = is_flex_stackup or is_top_outer or is_bottom_outer
     is_differential = trace_spacing_mm > 0
 
-    if is_top_outer:
+    surface_coating = aggregate_coverlay(stackup) if is_flex_stackup else None
+    if is_flex_stackup:
+        substrate = aggregate_dielectrics(stackup, catalog, flex_core_layers)
+        top_side = None
+    elif is_top_outer:
         substrate = aggregate_dielectrics(stackup, catalog, bottom_dielectrics)
         top_side = None
     elif is_bottom_outer:
@@ -196,7 +272,7 @@ def build_solver_request(
     if substrate is None:
         raise FieldSolverBridgeError("Could not determine dielectric thickness next to the selected copper layer.")
 
-    reference_freq_ghz = _weighted_reference_frequency_ghz(substrate, top_side)
+    reference_freq_ghz = _weighted_reference_frequency_ghz(substrate, top_side, surface_coating)
     request_type = "microstrip" if is_outer else "stripline"
     if is_differential:
         request_type = f"diff_{request_type}"
@@ -223,12 +299,22 @@ def build_solver_request(
         solver_options["trace_spacing"] = trace_spacing_m
 
     if is_outer:
+        if is_flex_stackup:
+            if surface_coating is None:
+                raise FieldSolverBridgeError("Could not determine flex coverlay thickness and dielectric values.")
+            coating_thickness_mm = surface_coating.total_thickness_mm
+            coating_dk = surface_coating.effective_dk
+            coating_df = surface_coating.average_df
+        else:
+            coating_thickness_mm = stackup.soldermask.thickness_mm
+            coating_dk = stackup.soldermask.dk
+            coating_df = stackup.soldermask.df
         solver_options["use_sm"] = True
-        solver_options["sm_t_sub"] = stackup.soldermask.thickness_mm / 1000.0
-        solver_options["sm_t_trace"] = stackup.soldermask.thickness_mm / 1000.0
-        solver_options["sm_t_side"] = stackup.soldermask.thickness_mm / 1000.0
-        solver_options["sm_er"] = stackup.soldermask.dk
-        solver_options["sm_tand"] = stackup.soldermask.df
+        solver_options["sm_t_sub"] = coating_thickness_mm / 1000.0
+        solver_options["sm_t_trace"] = coating_thickness_mm / 1000.0
+        solver_options["sm_t_side"] = coating_thickness_mm / 1000.0
+        solver_options["sm_er"] = coating_dk
+        solver_options["sm_tand"] = coating_df
         solver_options["epsilon_r_top"] = 1.0
         solver_options["tan_delta_top"] = 0.0
         solver_options["boundaries"] = ["open", "open", "open", "gnd"]
@@ -256,6 +342,8 @@ def build_solver_request(
             "trace_spacing_mm": trace_spacing_mm,
             "substrate": substrate.__dict__,
             "top_side": None if top_side is None else top_side.__dict__,
+            "surface_coating": None if surface_coating is None else surface_coating.__dict__,
+            "surface_coating_kind": "coverlay" if is_flex_stackup else "soldermask",
         },
         "solver_options": solver_options,
         "adaptive_options": {
@@ -781,8 +869,8 @@ def find_width_for_impedance(
     target_z0_ohm: float,
     *,
     tolerance_fraction: float = DEFAULT_TARGET_WIDTH_TOLERANCE,
-    width_min_mm: float = 0.05,
-    width_max_mm: float = 5.0,
+    width_min_mm: float = DEFAULT_WIDTH_SEARCH_MIN_MM,
+    width_max_mm: float = DEFAULT_WIDTH_SEARCH_MAX_MM,
     max_iterations: int = 30,
     ref_above_index: int | None = None,
     ref_below_index: int | None = None,
@@ -801,6 +889,10 @@ def find_width_for_impedance(
     """
     if target_z0_ohm <= 0:
         raise FieldSolverBridgeError("Target impedance must be a positive number.")
+    if width_min_mm <= 0 or width_max_mm <= width_min_mm:
+        raise FieldSolverBridgeError(
+            "Width search bounds must be positive, with the maximum greater than the minimum."
+        )
 
     cache: dict[tuple[float, bool], float] = {}
 
