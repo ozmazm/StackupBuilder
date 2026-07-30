@@ -1,8 +1,5 @@
 # StackupBuilder
 A desktop PCB stackup editor for designing, visualizing, validating, importing, and exporting in Xpedition/Pads format .stk file format rigid, flex, and rigid-flex layer constructions.
-# StackUp Editor
-
-StackUp Editor is a Windows desktop application for designing, reviewing, and exchanging PCB stackups. It supports both conventional rigid boards and complex rigid-flex constructions with multiple connected rigid and flex parts.
 
 The application combines material selection, structural validation, live visualization, impedance analysis, and CAD-oriented import/export tools in one interface.
 
