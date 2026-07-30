@@ -20,7 +20,7 @@ from dataclasses import replace
 from itertools import combinations
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QSignalBlocker, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -2973,7 +2973,7 @@ class RigidFlexEditorWindow(QMainWindow):
             editor.deleteLater()
 
         for zone in zones:
-            editor = self._make_zone_editor(zone.kind)
+            editor = self._make_zone_editor(zone.kind, defer_refresh=True)
             central = editor.centralWidget()
             central.setParent(None)
             self.tabs.addTab(central, zone.label)
@@ -3066,6 +3066,15 @@ class RigidFlexEditorWindow(QMainWindow):
             if incoming_source is not None and incoming_source is not editor:
                 self._bind_zone_definition(editor, incoming_source)
 
+        # Each imported editor has accumulated its final model and zone
+        # configuration without rebuilding its table or emitting overview
+        # signals. Refresh every tab once, then draw the combined overview once
+        # below.
+        for editor in self._zone_editors:
+            blocker = QSignalBlocker(editor)
+            editor.finish_deferred_refresh(select_meta=("layer", 0))
+            del blocker
+
         self.tabs.setCurrentIndex(0)
         self._active_visual_editor = self._zone_editors[0]
         first_flex = next((editor for editor in self._zone_editors if editor.is_flex_zone), None)
@@ -3148,8 +3157,17 @@ class RigidFlexEditorWindow(QMainWindow):
         self._update_zone_controls()
         self._refresh_combined_preview()
 
-    def _make_zone_editor(self, kind: str) -> StackupEditorWindow:
-        editor = StackupEditorWindow(self.root_path, zone_kind=kind)
+    def _make_zone_editor(
+        self,
+        kind: str,
+        *,
+        defer_refresh: bool = False,
+    ) -> StackupEditorWindow:
+        editor = StackupEditorWindow(
+            self.root_path,
+            zone_kind=kind,
+            defer_initial_refresh=defer_refresh,
+        )
         editor.build_context_menu_handler = (
             lambda meta, global_pos, zone_editor=editor: self._handle_zone_build_context_menu(
                 zone_editor,

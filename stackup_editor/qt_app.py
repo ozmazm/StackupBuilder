@@ -766,7 +766,13 @@ class StackupEditorWindow(QMainWindow):
     removeFlexSandwichRequested = Signal()
     stackupViewChanged = Signal()
 
-    def __init__(self, root_path: Path, *, zone_kind: str = "rigid") -> None:
+    def __init__(
+        self,
+        root_path: Path,
+        *,
+        zone_kind: str = "rigid",
+        defer_initial_refresh: bool = False,
+    ) -> None:
         super().__init__()
         self.root_path = root_path
         self.zone_kind = zone_kind
@@ -794,6 +800,8 @@ class StackupEditorWindow(QMainWindow):
         self.geometry_input_unit = "mm"
         self._ui_loading = False
         self._table_refreshing = False
+        self._refresh_deferred = bool(defer_initial_refresh)
+        self._deferred_select_meta: tuple[str, int | str] = ("layer", 0)
         self._row_meta: list[tuple[str, int | str]] = []
         self._layer_row_by_index: dict[int, int] = {}
         self._last_solver_result: dict[str, object] | None = None
@@ -843,7 +851,8 @@ class StackupEditorWindow(QMainWindow):
 
         self._build_ui()
         self._apply_stylesheet()
-        self._refresh_everything(select_meta=("layer", 0))
+        if not self._refresh_deferred:
+            self._refresh_everything(select_meta=("layer", 0))
         logger.info("StackupEditorWindow ready with %s stackup rows", len(self.stackup.layers))
 
     def _resolve_catalog_path(self, *relative_candidates: str) -> Path:
@@ -2064,7 +2073,11 @@ class StackupEditorWindow(QMainWindow):
             """
         app = QApplication.instance()
         if app is not None:
-            app.setStyleSheet(stylesheet)
+            # Applying a QApplication stylesheet re-polishes every widget in
+            # every zone. Rigid-flex imports create several identical hidden
+            # editors, so avoid repeating the same application-wide work.
+            if app.styleSheet() != stylesheet:
+                app.setStyleSheet(stylesheet)
         else:
             self.setStyleSheet(stylesheet)
 
@@ -3543,6 +3556,10 @@ class StackupEditorWindow(QMainWindow):
             self.preview.symmetry_issues = issues
 
     def _refresh_everything(self, *, select_meta: tuple[str, int | str] | None = None) -> None:
+        if self._refresh_deferred:
+            if select_meta is not None:
+                self._deferred_select_meta = select_meta
+            return
         self._refresh_table(select_meta=select_meta)
         self._refresh_editor()
         self._update_buttons()
@@ -3559,6 +3576,19 @@ class StackupEditorWindow(QMainWindow):
                 root_path=self.root_path,
             )
         self.stackupViewChanged.emit()
+
+    def finish_deferred_refresh(
+        self,
+        *,
+        select_meta: tuple[str, int | str] | None = None,
+    ) -> None:
+        """Perform one complete refresh after a batch of model changes."""
+        if select_meta is not None:
+            self._deferred_select_meta = select_meta
+        if not self._refresh_deferred:
+            return
+        self._refresh_deferred = False
+        self._refresh_everything(select_meta=self._deferred_select_meta)
 
     def _populate_combo(
         self,
