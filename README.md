@@ -1,340 +1,76 @@
 # StackUp Editor
 
-StackUp Editor is a desktop application for creating, editing, visualizing, validating, and exchanging PCB stackups. It supports conventional rigid boards as well as multi-zone rigid-flex constructions with linked rigid and flex regions.
+StackUp Editor is a Windows desktop application for designing, reviewing, and exchanging PCB stackups. It supports both conventional rigid boards and complex rigid-flex constructions with multiple connected rigid and flex parts.
 
-The application combines a structured layer table, manufacturer-based material catalogs, symmetric editing tools, a live cross-section, rigid-flex synchronization, and an integrated impedance workflow in one engineering-focused interface.
+The application combines material selection, structural validation, live visualization, impedance analysis, and CAD-oriented import/export tools in one interface.
 
-## What is it for?
+## Main features
 
-StackUp Editor helps turn an initial PCB layer concept into a structured stackup definition that can be reviewed, adjusted, analyzed, and shared.
+- Create rigid and rigid-flex PCB stackups.
+- Add, remove, and edit copper and dielectric layers.
+- Build multiple connected rigid and flex parts.
+- View the construction in an interactive live stackup diagram.
+- Select materials from manufacturer-based catalogs.
+- Work with core, prepreg, no-flow prepreg, dummy core, etched core, flex core, coverlay, and solder mask materials.
+- Apply symmetric changes when required.
+- Validate common PCB construction rules.
+- Calculate single-ended and differential impedance.
+- Import and export StackUp Editor text files.
+- Import and export Xpedition `.stk` stackups.
 
-Typical uses include:
-
-- Defining copper, core, prepreg, solder-mask, flex-core, coverlay, and adhesive layers.
-- Comparing dielectric constructions and frequency-dependent material properties.
-- Maintaining symmetric rigid stackups while adding or removing layers.
-- Building rigid-flex constructions with several rigid and flex zones.
-- Keeping flex-core copper weights synchronized with the linked rigid stackup.
-- Checking structural rules before a stackup is sent for fabrication review.
-- Preparing single-ended and differential impedance profiles.
-- Importing existing stackups and exporting them for documentation or CAD workflows.
-
-The live preview is intentionally schematic. Rectangle sizes use stable structural proportions so layer relationships remain readable; they are not drawn to scale from the physical thickness values in the table.
+The live stackup is a structural visualization. Layer sizes are arranged for readability and are not drawn directly to physical thickness scale.
 
 ## Who is it for?
 
-StackUp Editor is intended for:
+StackUp Editor is intended for PCB designers, hardware engineers, signal-integrity engineers, rigid-flex designers, CAM engineers, and students working with PCB layer constructions.
 
-- PCB layout engineers
-- Hardware and signal-integrity engineers
-- Rigid-flex designers
-- PCB fabrication and CAM engineers
-- Engineering teams preparing stackup proposals
-- Students and researchers learning PCB construction
-
-It is especially useful when the design contains multiple flex sandwiches or when material, copper, symmetry, and impedance decisions must remain coordinated across several zones.
-
-## Core capabilities
-
-### Rigid stackup editing
-
-- Add copper layers above or below the selected location.
-- Add dielectric materials above or below a selected dielectric.
-- Apply copper and dielectric changes individually or symmetrically.
-- Remove symmetric copper or dielectric pairs when the resulting construction remains valid.
-- Edit solder-mask properties directly in the stackup table.
-- View total board thickness, copper count, row count, and display units.
-- Detect symmetry and material-structure warnings.
-
-### Rigid-flex editing
-
-- Start with a master rigid part followed by a Flex Part.
-- Add a separate Flex Part after any selected rigid part to continue or branch the connected construction.
-- Add multiple rigid parts after any selected Flex Part.
-- Merge parallel Flex Parts into one downstream rigid part; every continuing flex-core span is preserved in the merged rigid construction.
-- Select one or several flex sandwiches; each selected sandwich creates its own minimal rigid part in one operation.
-- Clone an existing rigid part when an identical full construction is required.
-- Keep global copper labels stable across upper, lower, combined, and identical rigid branches.
-- Insert and remove flex sandwiches.
-- Display all connected rigid parts in a fan-out live stackup.
-- Select layers from either the table or the combined preview.
-- Synchronize flex-core copper type and thickness with corresponding rigid copper rows.
-- Keep coverlay and adhesive layers attached to the correct flex sandwich.
-- Preserve structurally correct relative spans after sandwiches are inserted or removed.
-
-### Structural safeguards
-
-The editor enforces several construction rules during rigid-flex editing:
-
-- Rigid Core and Flex Core materials cannot directly follow another core in dielectric order.
-- At least one Rigid PP layer must remain between neighboring core materials.
-- Additional bridge prepreg can be inserted and removed, but the last required separator is protected.
-- Flex-core rows and their linked copper layers are edited from the flex zone.
-- Symmetric operations update both sides of the rigid stackup together.
-- Copper removal is limited when it would invalidate the linked flex construction.
-
-These checks are design aids, not a replacement for fabricator-specific design-rule review.
-
-## Material catalogs
-
-The repository includes JSON catalogs generated from local manufacturer datasheets.
-
-| Catalog | Current contents | Important fields |
-| --- | ---: | --- |
-| Rigid core and prepreg | 732 entries: 460 core and 272 prepreg | Manufacturer, family, construction, resin content, thickness, Dk, Df, and frequency |
-| Flex core | 26 Panasonic R-F777 constructions | ED/RA copper type, upper and lower copper thickness, polyimide thickness, Dk, Df, and frequency |
-| Coverlay | 2 Arisawa C33 components | Polyimide and adhesive thickness, Dk, Df, frequency, and available datasheet properties |
-
-The rigid catalog currently contains material data from Isola, Panasonic, Nelco, TUC, and Shengyi families.
-
-### Frequency-dependent properties
-
-Material entries may contain Dk and Df values at several frequencies. The selected layer frequency controls the values used by the stackup and impedance calculations. A global frequency action is also available for applying a frequency selection across rigid dielectric layers.
-
-### Flex-core copper synchronization
-
-Flex-core product names encode the upper copper, dielectric, and lower copper construction. For example:
-
-- `35-25-35` uses 35 µm copper on both sides, displayed as 1 oz.
-- `18-25-18` uses 18 µm copper on both sides, displayed as 0.5 oz.
-
-Selecting a flex-core material updates the linked rigid copper rows automatically.
-
-### Catalog files
-
-- `data/material_catalog.json` — rigid core and prepreg catalog
-- `stackup_editor/flex_core_material_catalog.json` — bundled flex-core catalog
-- `stackup_editor/coverlay_material_catalog.json` — bundled coverlay catalog
-- `Materials/` — source manufacturer PDFs used by the catalog builders
-
-Always verify catalog values against the latest manufacturer datasheet and the fabrication frequency/model required by your board supplier.
-
-## Impedance workflow
-
-The Calculate Impedance workspace supports:
-
-- Single-ended and differential profiles
-- Multiple target-impedance profiles
-- Per-layer reference-plane selection
-- Trace-width and differential-gap entry
-- Automatic single-ended width solving toward a target impedance
-- Copper-thickness and roughness inputs
-- Dielectric Dk, Df, and frequency data from the active stackup
-- Detailed field-solver reports and parameter sweeps
-- Excel impedance-table export using `TransmissionLineTemp.xlsx`
-
-The field solver is launched through Node.js and the JavaScript solver sources under `js_2d_fields-master/`.
-
-## Import and export
-
-The File menu is available from the main StackUp Editor window.
-
-Supported workflows include:
-
-- Import a StackUp Editor text export.
-- Export a human-readable stackup text file.
-- Import an Xpedition `.stk` stackup.
-- Export the current stackup as an Xpedition `.stk` file.
-- Export impedance profiles to an `.xlsx` workbook.
-
-The text format can retain StackUp Editor impedance-workspace data in addition to the visible stackup definition.
-
-## How to use
-
-### 1. Choose a mode
-
-At startup, select:
-
-- **Rigid Stackup** for a conventional rigid PCB.
-- **Rigid Flex Stackup** for linked rigid and flex zones.
-
-### 2. Build the layer structure
-
-Select a row in the stackup table and use the structural controls:
-
-- **Add Layer Above**
-- **Add Layer Below**
-- **Add Material Above**
-- **Add Material Below**
-- **Remove Symmetric Pair**
-
-Rigid structural operations are symmetric by design.
-
-### 3. Assign materials
-
-Select a dielectric row, then filter by:
-
-1. Dielectric type
-2. Manufacturer
-3. Family
-4. Material entry
-5. Frequency
-
-Apply the result to the selected layer or its symmetric pair. Copper rows provide copper-type, thickness, and surface-roughness controls.
-
-### 4. Work with rigid-flex zones
-
-In rigid-flex mode:
-
-1. Treat tabs as editable stackup definitions and the live stackup as the physical-instance view.
-2. Every flex sandwich inserted directly into the first/master rigid zone receives its own independent Flex Part tab and material definition.
-3. Later repeated live instances may bind to one of those Flex Part definitions; editing that tab updates all of its bound instances without creating duplicate tabs.
-4. Add rigid prepreg in valid bridge locations between flex cores.
-5. Select **Add Rigid Part**, enter the first part name, and check the required flex sandwiches. Multiple checks create multiple consecutively named physical rigid instances in one operation.
-6. Choose **One minimal rigid part per selected sandwich**, select an offered intermediate copper-layer count, create an independent full-span part with the same copper-layer count as the Master Rigid Part, or clone an existing rigid construction.
-7. A non-cloned rigid part always receives its own editable tab, even when it has the same copper-layer count as the Master Rigid Part. Only an explicit **Clone** construction shares an existing rigid definition and appears as another live-stackup instance.
-8. Use **Add Flex Part** from a downstream connected rigid instance to add a bound live flex instance. A Flex Part created directly from the master rigid zone or from a disconnected rigid root receives a separate editable tab.
-9. When parallel Flex Parts continue into the same downstream position, adding the rigid part from either bound instance merges all of their flex-core spans automatically.
-10. Review the connected live stackup after every structural change.
-11. A flex sandwich connected to an additional rigid part cannot be removed until that rigid part is removed. Unconnected flex instances remain removable, while the project must retain at least one Flex Part.
-
-Bound instances share editable material definitions while retaining their own physical slot, connection, and coverage data. This keeps material edits consistent without presenting visualization-only copies as independent stackups.
-
-### 5. Calculate impedance
-
-Open **Calculate Impedance**, choose the single-ended or differential section, create a target profile, assign reference planes, and enter the trace geometry. Run the solver for individual rows or export the completed impedance table.
-
-### 6. Save or exchange the result
-
-Use the File menu to export a text or Xpedition stackup. Rigid-flex text projects also preserve rigid-part names, flex-sandwich connections, shared-definition bindings, global layer numbers, and impedance workspaces so the complete branching layout can be restored later.
-
-## Installation
-
-The application is currently developed and packaged for Windows.
+## Getting started
 
 ### Requirements
 
+- Windows
 - Python 3.10 or newer
-- PySide6, including Qt WebEngine support
-- Node.js for the field solver
-- `pypdf` for rebuilding the rigid material catalog
-- `pdfplumber` for additional PDF table parsing support
-- PyInstaller only when building a portable release
+- PySide6
+- Node.js for impedance calculations
 
-### Development setup
-
-From PowerShell:
+### Installation
 
 ```powershell
-git clone <your-repository-url>
-cd "StackUpEditor"
+git clone https://github.com/ozmazm/StackupBuilder.git
+cd StackupBuilder
 
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main.py
+```
+
+For catalog-building and packaging tools:
+
+```powershell
 python -m pip install -r requirements-dev.txt
-python main.py
 ```
 
-If `node.exe` is not available on `PATH`, set `STACKUP_EDITOR_NODE` to its full path before running impedance calculations or building a release.
+## Basic workflow
 
-```powershell
-$env:STACKUP_EDITOR_NODE = "C:\Program Files\nodejs\node.exe"
-python main.py
-```
+1. Start the application and choose **Rigid Stackup** or **Rigid-Flex Stackup**.
+2. Build the required copper and dielectric structure.
+3. Select materials and constructions from the stackup table.
+4. Review the live stackup and structural warnings.
+5. Configure impedance profiles when required.
+6. Save the project or export it as text, Excel, or Xpedition `.stk`.
 
-## Building a portable Windows release
+## Material data
 
-The release script bundles the Python application, required project data, and a Node.js runtime for the field solver.
+The repository includes material catalogs for rigid laminates, prepregs, flex cores, coverlays, and no-flow materials. Material properties may vary by frequency and manufacturer revision.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\build_release.ps1
-```
-
-The portable application and ZIP archive are written to `release_dist/`.
-
-Optional environment overrides:
-
-```powershell
-$env:STACKUP_EDITOR_PYTHON = "C:\Path\To\python.exe"
-$env:STACKUP_EDITOR_NODE = "C:\Path\To\node.exe"
-```
-
-## Rebuilding material catalogs
-
-To rebuild the rigid core/prepreg catalog, first place the supported manufacturer PDFs under a local `Materials/` directory, then run:
-
-```powershell
-python .\tools\build_material_catalog.py
-```
-
-Rebuild the rigid-flex catalogs:
-
-```powershell
-python .\stackup_editor\build_flex_material_catalog.py
-```
-
-Review the generated JSON diff carefully before committing catalog changes. Datasheet table formats can change, and parsed engineering values should always be audited.
-
-## Project structure
-
-```text
-StackUpEditor/
-├── main.py                         Application entry point
-├── main.spec                       PyInstaller configuration
-├── data/                           Generated rigid-material catalog
-├── Materials/                      Optional local datasheets; excluded from Git
-├── runtime/                        Runtime files used by packaged builds
-├── requirements.txt                Runtime Python dependency
-├── requirements-dev.txt            Catalog and packaging dependencies
-├── stackup_editor/
-│   ├── models.py                   Stackup data model and structural rules
-│   ├── qt_app.py                   Main rigid editor window
-│   ├── rigid_flex_app.py           Multi-zone rigid-flex editor and preview
-│   ├── catalog.py                  Rigid material catalog loader
-│   ├── flex_catalog.py             Flex-core and coverlay catalog loaders
-│   ├── exporter.py                 Text and Xpedition import/export
-│   ├── impedance_dialog.py         Impedance workspace UI
-│   ├── field_solver_bridge.py      Python-to-Node field-solver bridge
-│   ├── impedance_table_export.py   Excel impedance-table export
-│   ├── units.py                    Unit conversion and formatting
-│   └── ui/                         Qt Designer interface files
-├── tools/
-│   ├── build_material_catalog.py   Rigid catalog generator
-│   ├── build_release.ps1           Portable Windows release builder
-│   └── field_solver_runner.mjs     JavaScript field-solver runner
-└── js_2d_fields-master/            JavaScript/WASM field-solver sources
-```
-
-## Units and copper types
-
-Supported display units:
-
-- µm
-- mm
-- mil
-- inch
-- oz for copper weight
-
-Supported rigid copper labels include RTF, VLP, HVLP, and STD. Flex-core constructions support ED and RA copper types.
-
-## Current limitations
-
-- The live stackup is a structural diagram, not a thickness-scaled mechanical drawing.
-- Rigid-flex rules are general safeguards and may not match every fabricator's process.
-- Imported Xpedition files must use the subset of stackup data supported by the current parser.
-- Material properties depend on the bundled catalog revision and selected frequency.
-- Field-solver results depend on the selected reference planes, geometry, material data, and solver model.
-- The release workflow is Windows-focused.
-
-## Contributing
-
-Contributions are welcome for new material parsers, additional CAD exchange formats, validation rules, solver improvements, automated tests, and UI refinements.
-
-When contributing:
-
-1. Keep structural editing symmetric unless a workflow explicitly requires otherwise.
-2. Preserve rigid-flex links when changing layer-index logic.
-3. Add validation for new material or construction rules.
-4. Verify live-preview behavior after inserting and removing middle flex sandwiches.
-5. Audit generated material-catalog changes against their source datasheets.
-6. Test both Rigid Stackup and Rigid Flex Stackup modes.
+Always confirm final material availability, Dk, Df, thickness, resin content, copper profile, and manufacturing constraints with the selected PCB fabricator.
 
 ## Engineering notice
 
-StackUp Editor is an engineering aid. Final stackups, impedance targets, material availability, copper tolerances, press thicknesses, and rigid-flex constructions must be reviewed with the selected PCB fabricator before release to manufacturing.
+StackUp Editor is an engineering aid. Its validation rules, visualizations, and impedance results do not replace final review by a PCB manufacturer or signal-integrity specialist.
 
 ## License
 
-No license has been selected for this repository yet. Add a `LICENSE` file before distributing or accepting external contributions.
+No license has been selected for this repository yet.
