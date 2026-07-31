@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
 
 try:
     import pdfplumber
@@ -36,6 +40,12 @@ MEGTRON_FAMILY_LABELS = {
 }
 
 PDF_SOURCES = {
+    "fr406-laminate-and-prepreg__Dk_Df_Tables.pdf": {
+        "manufacturer": "Isola",
+        "series": "FR406",
+        "family": "FR406",
+        "parser": "isola",
+    },
     "fr408hr-laminate-and-prepreg__Dk_Df_Tables.pdf": {
         "manufacturer": "Isola",
         "series": "FR408HR",
@@ -177,6 +187,15 @@ PDF_SOURCES = {
     },
 }
 
+XML_SOURCES = {
+    "LibraryIT180A.xml": {
+        "manufacturer": "ITEQ",
+        "series": "IT-180A",
+        "family": "IT-180A",
+        "parser": "altium_material_library",
+    },
+}
+
 
 @dataclass
 class MaterialRecord:
@@ -206,10 +225,16 @@ class MaterialRecord:
 
 def main() -> None:
     refreshed_sources = {
-        pdf_path.name
-        for pdf_path in sorted(PDF_ROOT.rglob("*.pdf"))
-        if pdf_path.name in PDF_SOURCES
+        xml_path.name
+        for xml_path in sorted(PDF_ROOT.rglob("*.xml"))
+        if xml_path.name in XML_SOURCES
     }
+    if PdfReader is not None:
+        refreshed_sources.update(
+            pdf_path.name
+            for pdf_path in sorted(PDF_ROOT.rglob("*.pdf"))
+            if pdf_path.name in PDF_SOURCES
+        )
     existing_records = [
         record for record in load_existing_records(OUTPUT) if record.source_pdf not in refreshed_sources
     ]
@@ -219,6 +244,8 @@ def main() -> None:
     for pdf_path in sorted(PDF_ROOT.rglob("*.pdf")):
         source = PDF_SOURCES.get(pdf_path.name)
         if source is None:
+            continue
+        if PdfReader is None:
             continue
         parser = source["parser"]
         if parser == "isola":
@@ -233,6 +260,19 @@ def main() -> None:
             parsed_records = parse_shengyi_table_pdf(pdf_path, source)
         elif parser == "no_flow":
             parsed_records = parse_no_flow_pdf(pdf_path, source)
+        else:
+            parsed_records = []
+
+        parsed_count += len(parsed_records)
+        for record in parsed_records:
+            records_by_identity[record_identity(record)] = record
+
+    for xml_path in sorted(PDF_ROOT.rglob("*.xml")):
+        source = XML_SOURCES.get(xml_path.name)
+        if source is None:
+            continue
+        if source["parser"] == "altium_material_library":
+            parsed_records = parse_altium_material_library(xml_path, source)
         else:
             parsed_records = []
 
@@ -255,7 +295,7 @@ def main() -> None:
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "generated_from": "local datasheet PDFs merged with the existing catalog",
+        "generated_from": "local material source files merged with the existing catalog",
         "materials": [asdict(record) for record in records],
     }
     OUTPUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -286,6 +326,116 @@ def record_identity(record: MaterialRecord) -> tuple[object, ...]:
         round(record.resin_content_pct, 6),
         round(record.thickness_mm, 6),
         record.classification or "",
+    )
+
+
+def parse_altium_material_library(
+    xml_path: Path,
+    source: dict[str, str],
+) -> list[MaterialRecord]:
+    """Parse core and prepreg rows from an Altium ExtensibleLibrary XML file."""
+    records: list[MaterialRecord] = []
+    root = ET.parse(xml_path).getroot()
+
+    for entity in root.findall(".//{*}Entity"):
+        properties = {
+            prop.attrib.get("Name", ""): (prop.text or "").strip()
+            for prop in entity.findall("{*}Property")
+        }
+        material_name = properties.get("Name", "")
+        if material_name.endswith(" - Core"):
+            material_type = "core"
+        elif material_name.endswith(" - PP"):
+            material_type = "prepreg"
+        else:
+            continue
+
+        construction = properties["Constructions"]
+        resin_content_pct = parse_percent(properties["Resin"])
+        frequency_ghz = parse_frequency_ghz(properties["Frequency"])
+        dk = float(properties["DielectricConstant"])
+        df = float(properties["LossTangent"])
+        thickness_mm, thickness_in, thickness_um = parse_length(properties["Thickness"])
+        manufacturer = properties.get("Manufacturer") or source["manufacturer"]
+        tg = properties.get("GlassTransTemp")
+
+        records.append(
+            MaterialRecord(
+                id=make_id(
+                    xml_path.name,
+                    material_type,
+                    source["family"],
+                    construction,
+                    thickness_mm,
+                    source["series"],
+                ),
+                manufacturer=manufacturer,
+                series=source["series"],
+                family=source["family"],
+                material_type=material_type,
+                variant=source["series"],
+                source_pdf=xml_path.name,
+                construction=construction,
+                resin_content_pct=resin_content_pct,
+                thickness_mm=thickness_mm,
+                thickness_in=thickness_in,
+                thickness_um=thickness_um,
+                classification=None,
+                style=construction,
+                plies=parse_ply_count(construction),
+                dk_by_freq_ghz={str(frequency_ghz): dk},
+                df_by_freq_ghz={str(frequency_ghz): df},
+                reference_freq_ghz=frequency_ghz,
+                reference_dk=dk,
+                reference_df=df,
+                max_freq_ghz=frequency_ghz,
+                notes=(
+                    f"Imported from local Altium material library {xml_path.name}."
+                    + (f" Glass transition temperature: {tg}." if tg else "")
+                ),
+            )
+        )
+
+    return records
+
+
+def parse_percent(value: str) -> float:
+    match = re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*%\s*", value)
+    if not match:
+        raise ValueError(f"Unsupported percentage value: {value!r}")
+    return float(match.group(1))
+
+
+def parse_frequency_ghz(value: str) -> float:
+    match = re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*(MHz|GHz)\s*", value, re.IGNORECASE)
+    if not match:
+        raise ValueError(f"Unsupported frequency value: {value!r}")
+    frequency = float(match.group(1))
+    return frequency / 1000.0 if match.group(2).lower() == "mhz" else frequency
+
+
+def parse_length(value: str) -> tuple[float, float, float]:
+    match = re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*(mil|mm|um|µm|in)\s*", value, re.IGNORECASE)
+    if not match:
+        raise ValueError(f"Unsupported length value: {value!r}")
+    magnitude = float(match.group(1))
+    unit = match.group(2).lower()
+    if unit == "mil":
+        thickness_in = magnitude / 1000.0
+        thickness_mm = magnitude * 0.0254
+    elif unit == "in":
+        thickness_in = magnitude
+        thickness_mm = magnitude * 25.4
+    elif unit == "mm":
+        thickness_mm = magnitude
+        thickness_in = magnitude / 25.4
+    else:
+        thickness_mm = magnitude / 1000.0
+        thickness_in = thickness_mm / 25.4
+    return (
+        round(thickness_mm, 9),
+        round(thickness_in, 9),
+        round(thickness_mm * 1000.0, 6),
     )
 
 
