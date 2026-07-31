@@ -111,6 +111,41 @@ class MaterialComparisonTests(unittest.TestCase):
         self.assertNotIn("no_flow_prepreg", {summary.material_type for summary in summaries})
         self.assertEqual(no_flow_summaries, [])
 
+    def test_requested_megtron_families_are_combined_for_comparison(self) -> None:
+        summaries = build_family_summaries(
+            self.catalog,
+            manufacturer="Panasonic",
+            frequency_ghz=None,
+        )
+        by_family = {summary.family: summary for summary in summaries}
+        expected_groups = {
+            "Megtron6 (G)": {"Megtron6 R-5670(G)", "Megtron6 R-5775(G)"},
+            "Megtron6 (K)": {"Megtron6 R-5670(K)", "Megtron6 R-5775(K)"},
+            "Megtron6 (N)": {"Megtron6 R-5670(N)", "Megtron6 R-5775(N)"},
+            "Megtron7 (N)": {"Megtron7 R-5680(N)", "Megtron7 R-5785(N)"},
+            "Megtron7 (YN)": {"Megtron7 R-568Y(N)", "Megtron7 R-578Y(N)"},
+            "Megtron8 (YN)": {"Megtron8 R-569Y(N)", "Megtron8 R-579Y(N)"},
+            "Megtron7 (YU)": {"Megtron8 R-569Y(U)", "Megtron8 R-579Y(U)"},
+        }
+
+        for display_family, source_families in expected_groups.items():
+            self.assertIn(display_family, by_family)
+            self.assertEqual(set(by_family[display_family].catalog_families), source_families)
+            self.assertGreater(by_family[display_family].entry_count, 0)
+
+        source_names = set().union(*expected_groups.values())
+        self.assertTrue(source_names.isdisjoint(by_family))
+
+    def test_megtron_group_display_name_is_searchable(self) -> None:
+        summaries = build_family_summaries(
+            self.catalog,
+            manufacturer="Panasonic",
+            frequency_ghz=None,
+            search="Megtron7 (YN)",
+        )
+
+        self.assertEqual([summary.family for summary in summaries], ["Megtron7 (YN)"])
+
     @unittest.skipUnless(QT_AVAILABLE, "PySide6 is not installed in this test environment")
     def test_dialog_filters_and_populates_raw_construction_table(self) -> None:
         dialog = MaterialComparisonDialog(self.catalog)

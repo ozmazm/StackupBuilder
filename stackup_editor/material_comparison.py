@@ -519,7 +519,7 @@ class MaterialComparisonDialog(QDialog):
             "FR406",
             "IT-180A",
             "I-Tera MT40",
-            "Megtron6 R-5775(N)",
+            "Megtron6 (N)",
             "Tachyon 100G",
             "ThunderClad 3+",
         )
@@ -636,7 +636,10 @@ class MaterialComparisonDialog(QDialog):
         frequency = self.frequency_combo.currentData()
         entries = []
         for entry in self.catalog.entries:
-            if entry.manufacturer != summary.manufacturer or entry.family != summary.family:
+            if (
+                entry.manufacturer != summary.manufacturer
+                or entry.family not in summary.catalog_families
+            ):
                 continue
             if material_type and entry.material_type != material_type:
                 continue

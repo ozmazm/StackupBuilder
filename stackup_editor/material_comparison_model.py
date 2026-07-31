@@ -9,10 +9,32 @@ from stackup_editor.catalog import MaterialCatalog, MaterialEntry
 
 _KEY_SEPARATOR = "\x1f"
 _EXCLUDED_MANUFACTURERS = {"arlon"}
+_PANASONIC_FAMILY_GROUPS = {
+    "Megtron6 R-5775(G)": "Megtron6 (G)",
+    "Megtron6 R-5670(G)": "Megtron6 (G)",
+    "Megtron6 R-5775(K)": "Megtron6 (K)",
+    "Megtron6 R-5670(K)": "Megtron6 (K)",
+    "Megtron6 R-5775(N)": "Megtron6 (N)",
+    "Megtron6 R-5670(N)": "Megtron6 (N)",
+    "Megtron7 R-5680(N)": "Megtron7 (N)",
+    "Megtron7 R-5785(N)": "Megtron7 (N)",
+    "Megtron7 R-568Y(N)": "Megtron7 (YN)",
+    "Megtron7 R-578Y(N)": "Megtron7 (YN)",
+    "Megtron8 R-569Y(N)": "Megtron8 (YN)",
+    "Megtron8 R-579Y(N)": "Megtron8 (YN)",
+    "Megtron8 R-569Y(U)": "Megtron7 (YU)",
+    "Megtron8 R-579Y(U)": "Megtron7 (YU)",
+}
 
 
 def manufacturer_is_comparable(manufacturer: str) -> bool:
     return manufacturer.strip().casefold() not in _EXCLUDED_MANUFACTURERS
+
+
+def comparison_family_name(manufacturer: str, family: str) -> str:
+    if manufacturer.strip().casefold() == "panasonic":
+        return _PANASONIC_FAMILY_GROUPS.get(family, family)
+    return family
 
 
 @dataclass(frozen=True)
@@ -30,6 +52,7 @@ class FamilySummary:
     min_resin_pct: float
     max_resin_pct: float
     max_frequency_ghz: float
+    source_families: tuple[str, ...] = ()
 
     @property
     def key(self) -> str:
@@ -38,6 +61,10 @@ class FamilySummary:
     @property
     def resin_span_pct(self) -> float:
         return self.max_resin_pct - self.min_resin_pct
+
+    @property
+    def catalog_families(self) -> tuple[str, ...]:
+        return self.source_families or (self.family,)
 
 
 RADAR_AXES = (
@@ -104,13 +131,18 @@ def build_family_summaries(
             continue
         if material_type and entry.material_type != material_type:
             continue
-        haystack = f"{entry.manufacturer} {entry.family} {entry.series}".casefold()
-        if search_folded and search_folded not in haystack:
-            continue
-        grouped.setdefault((entry.manufacturer, entry.family), []).append(entry)
+        comparison_family = comparison_family_name(entry.manufacturer, entry.family)
+        grouped.setdefault((entry.manufacturer, comparison_family), []).append(entry)
 
     summaries: list[FamilySummary] = []
     for (entry_manufacturer, family), family_entries in grouped.items():
+        haystack = " ".join(
+            [entry_manufacturer, family]
+            + [entry.family for entry in family_entries]
+            + [entry.series for entry in family_entries]
+        ).casefold()
+        if search_folded and search_folded not in haystack:
+            continue
         valued_entries = [
             (entry, values)
             for entry in family_entries
@@ -134,6 +166,7 @@ def build_family_summaries(
                 min_resin_pct=min(entry.resin_content_pct for entry, _values in valued_entries),
                 max_resin_pct=max(entry.resin_content_pct for entry, _values in valued_entries),
                 max_frequency_ghz=max(entry.max_freq_ghz for entry in family_entries),
+                source_families=tuple(sorted({entry.family for entry in family_entries})),
             )
         )
     return sorted(summaries, key=lambda item: (item.manufacturer.casefold(), item.family.casefold()))
