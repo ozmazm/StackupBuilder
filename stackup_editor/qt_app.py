@@ -50,6 +50,7 @@ from stackup_editor.exporter import (
 from stackup_editor.flex_catalog import CoverlayMaterialCatalog, FlexCoreEntry, FlexCoreMaterialCatalog
 from stackup_editor.impedance_dialog import CalculateImpedanceDialog
 from stackup_editor.impedance_models import ImpedanceWorkspaceState
+from stackup_editor.material_comparison import MaterialComparisonDialog
 from stackup_editor.models import (
     COPPER_TYPES,
     DIELECTRIC_TYPE_CHOICES,
@@ -807,6 +808,7 @@ class StackupEditorWindow(QMainWindow):
         self._last_solver_result: dict[str, object] | None = None
         self._solver_result_window: FieldSolverResultsDialog | None = None
         self._impedance_dialog: CalculateImpedanceDialog | None = None
+        self._material_comparison_dialog: MaterialComparisonDialog | None = None
         self.build_context_menu_handler = None
         self.impedance_workspace = ImpedanceWorkspaceState()
         self._impedance_legacy_migrated = False
@@ -1204,6 +1206,8 @@ class StackupEditorWindow(QMainWindow):
         self.snapshot_group.hide()
         if self.copyright_frame is not None:
             self.copyright_frame.hide()
+        if not self.is_flex_zone:
+            self.note_group.hide()
         # The table itself is now the editor. Keep the legacy widgets alive for
         # compatibility with existing controller code, but remove their panel
         # from the visible layout.
@@ -1347,6 +1351,20 @@ class StackupEditorWindow(QMainWindow):
             self.unit_action_group.addAction(action)
             self.units_menu.addAction(action)
             self.unit_actions[unit] = action
+
+        self.help_menu = self.menuBar().addMenu("&Help")
+        self.material_comparison_action = self.help_menu.addAction("Material Comparison")
+        self.material_comparison_action.setStatusTip(
+            "Compare dielectric material families, constructions, Dk, Df, and availability"
+        )
+        self.material_comparison_action.triggered.connect(self._open_material_comparison)
+
+    def _open_material_comparison(self) -> None:
+        if self._material_comparison_dialog is None:
+            self._material_comparison_dialog = MaterialComparisonDialog(self.catalog, self)
+        self._material_comparison_dialog.show()
+        self._material_comparison_dialog.raise_()
+        self._material_comparison_dialog.activateWindow()
 
     def _sync_command_menu_state(self) -> None:
         self.add_layer_above_action.setEnabled(not self.is_flex_zone and self.add_above_button.isEnabled())
