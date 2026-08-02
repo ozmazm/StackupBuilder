@@ -1,3 +1,0 @@
-Rigid_Main	FlexCable_1;FlexCable_2
-FlexCable_1	Connector_1
-FlexCable_2	Connector_2
