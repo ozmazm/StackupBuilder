@@ -1,0 +1,7 @@
+[2026-07-19 15.34.04] -------------------- CREATE --------------------
+[2026-07-19 15.34.04] Creating Project Backup infrastructure for project [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\XpeditionRigid.prj].
+[2026-07-19 15.34.04] Successfully created [Constraints Definition Upgrade] backup [2026-07-19 15.34.04 - consDefUpgr.zip] requested by [MOGUZ:donme].
+[2026-07-19 15.34.04] Migrated iCDB content backup file [cdbback\2026-07-19 15.34.04-24548.zip] removed.
+[2026-07-19 15.34.05] Successfully created [AutoSave] backup [2026-07-19 15.34.04 - auto.zip] requested by [MOGUZ:donme].
+[2026-07-21 21.48.55] Successfully created [AutoSave] backup [2026-07-21 21.48.55 - auto.zip] requested by [MOGUZ:donme].
+[2026-07-26 13.51.05] Successfully created [AutoSave] backup [2026-07-26 13.51.05 - auto.zip] requested by [MOGUZ:donme].

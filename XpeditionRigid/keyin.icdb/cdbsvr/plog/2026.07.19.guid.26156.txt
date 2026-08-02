@@ -1,0 +1,56 @@
+[2026.07.19 15:34:03] [0001m.32s.132ms] [0] WELCOME
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] iCDB Database ver.3.242, 1TMAkS/K5diX+FZQBzeW7A, build:25213694 created 2024-08-20 08:05:30, sources stamp:1TMAkS/K5diX+FZQBzeW7A
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Unpublished work. Copyright 2024 Siemens\r\n\r\nThis material contains trade secrets or otherwise confidential\r\ninformation owned by Siemens Industry Software Inc.\r\nor its affiliates (collectively, 'SISW'), or its licensors.\r\nAccess to and use of this information is strictly limited\r\nas set forth in the Customer's applicable agreements with SISW.
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Base flow version [2409]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Install Id [2753288], Flow Id [Xpedition 2409], Full Flow Name [Xpedition 2409], Exact Access Date [2024/08/01]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Machine [MOGUZ]  IP [127.0.0.1,192.168.88.139]  User [donme]  PID [26156]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Operating system [Microsoft Windows 8 Home Premium Edition, 64-bit (build 9200)]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Current working dir [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\PCB]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] PATH [C:\SiemensEDA\XENTP2409\SDD_HOME\xe\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\bin;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win32\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\jre\default\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\wg\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common3D\win64\lib;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files\HP\OMEN-Broadcast\Common;C:\Program Files\HP\HP One Agent;C:\Program Files\NVIDIA Corporation\NVIDIA app\NvDLISR;C:\Users\donme\.cargo\bin;C:\Users\donme\AppData\Local\Microsoft\WindowsApps;C:\Users\donme\AppData\Local\Python\bin;C:\Users\donme\AppData\Roaming\SPB_Data\.local\bin;C:\Users\donme\AppData\Local\Programs\cursor\resources\app\bin]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] SDD_HOME [C:\SiemensEDA\XENTP2409\SDD_HOME] on file system [NTFS]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] SDD_PLATFORM [win64]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] WDIR [C:\WDIR\XENTP2409;C:\SiemensEDA\XENTP2409\SDD_HOME\standard;C:\SiemensEDA\HL2409\SDD_HOME\hlsa\cross-probe\2409_scripts]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [1] Local iCDB working dir [C:\WDIR\XENTP2409\iCDB] on file system [NTFS]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] File change time:        [2026-07-19 15.34.00]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] File modification time:  [2026-05-10 19.52.16]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Last change time:        [1970-01-01 03.00.00]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Last database open information:
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Time:             [2023-09-08 03.22.00]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Location:         [C:\svn_workspace\engr_trunk\source\Expedition\ExpTemplates\PCBTemplates\Central Library\Templates\Layout\4 Layer Template\keyin.icdb\icdb.dat]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Machine:          [ALH-CPRICE-L]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] User:             [m3n5oy]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] PID:              [13772]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Application:      [iCDB Client]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Operating system: [Microsoft Windows 8 Enterprise Edition, 64-bit (build 9200)]
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Database GUID must be regenerated
+[2026.07.19 15:34:03] [0001m.32s.133ms] [3] Previous database GUID [8771-81ce-7514-077a-4245-af9a-245a-f960-0857-602d-cde5-e5f5]
+[2026.07.19 15:34:03] [0001m.32s.134ms] [3] Current database GUID  [ad27-33ca-a5e0-1720-b34c-c5a1-44cc-5a60-4265-ff20-f0e9-86c5]
+[2026.07.19 15:34:03] [0001m.32s.134ms] [0] .
+[2026.07.19 15:34:04] [0001m.32s.522ms] [0] WELCOME
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] iCDB Database ver.3.242, 1TMAkS/K5diX+FZQBzeW7A, build:25213694 created 2024-08-20 08:05:30, sources stamp:1TMAkS/K5diX+FZQBzeW7A
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Unpublished work. Copyright 2024 Siemens\r\n\r\nThis material contains trade secrets or otherwise confidential\r\ninformation owned by Siemens Industry Software Inc.\r\nor its affiliates (collectively, 'SISW'), or its licensors.\r\nAccess to and use of this information is strictly limited\r\nas set forth in the Customer's applicable agreements with SISW.
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Base flow version [2409]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Install Id [2753288], Flow Id [Xpedition 2409], Full Flow Name [Xpedition 2409], Exact Access Date [2024/08/01]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Machine [MOGUZ]  IP [127.0.0.1,192.168.88.139]  User [donme]  PID [26156]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Operating system [Microsoft Windows 8 Home Premium Edition, 64-bit (build 9200)]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Current working dir [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\PCB]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] PATH [C:\SiemensEDA\XENTP2409\SDD_HOME\xe\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\bin;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win32\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\jre\default\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\wg\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common3D\win64\lib;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files\HP\OMEN-Broadcast\Common;C:\Program Files\HP\HP One Agent;C:\Program Files\NVIDIA Corporation\NVIDIA app\NvDLISR;C:\Users\donme\.cargo\bin;C:\Users\donme\AppData\Local\Microsoft\WindowsApps;C:\Users\donme\AppData\Local\Python\bin;C:\Users\donme\AppData\Roaming\SPB_Data\.local\bin;C:\Users\donme\AppData\Local\Programs\cursor\resources\app\bin]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] SDD_HOME [C:\SiemensEDA\XENTP2409\SDD_HOME] on file system [NTFS]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] SDD_PLATFORM [win64]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] WDIR [C:\WDIR\XENTP2409;C:\SiemensEDA\XENTP2409\SDD_HOME\standard;C:\SiemensEDA\HL2409\SDD_HOME\hlsa\cross-probe\2409_scripts]
+[2026.07.19 15:34:04] [0001m.32s.522ms] [1] Local iCDB working dir [C:\WDIR\XENTP2409\iCDB] on file system [NTFS]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] File change time:        [2026-07-19 15.34.03]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] File modification time:  [2026-07-19 15.34.03]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Last change time:        [2026-07-19 15.34.03]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Last database open information:
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Time:             [2023-09-08 03.22.00]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Location:         [C:\svn_workspace\engr_trunk\source\Expedition\ExpTemplates\PCBTemplates\Central Library\Templates\Layout\4 Layer Template\keyin.icdb\icdb.dat]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Machine:          [ALH-CPRICE-L]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] User:             [m3n5oy]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] PID:              [13772]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Application:      [iCDB Client]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Operating system: [Microsoft Windows 8 Enterprise Edition, 64-bit (build 9200)]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Database GUID must be regenerated
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Previous database GUID [ad27-33ca-a5e0-1720-b34c-c5a1-44cc-5a60-4265-ff20-f0e9-86c5]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [3] Current database GUID  [5f5f-f00a-b508-4503-c34c-c5a2-44cc-5a60-4265-ff20-f0e9-86c5]
+[2026.07.19 15:34:04] [0001m.32s.523ms] [0] .
