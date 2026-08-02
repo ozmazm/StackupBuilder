@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from stackup_editor.catalog import MaterialCatalog, MaterialEntry
+from stackup_editor.copper_roughness_help import CopperRoughnessDialog
 from stackup_editor.exporter import (
     export_stackup_text,
     export_stackup_xpedition,
@@ -51,6 +52,7 @@ from stackup_editor.flex_catalog import CoverlayMaterialCatalog, FlexCoreEntry, 
 from stackup_editor.impedance_dialog import CalculateImpedanceDialog
 from stackup_editor.impedance_models import ImpedanceWorkspaceState
 from stackup_editor.material_comparison import MaterialComparisonDialog
+from stackup_editor.material_constructions_help import MaterialConstructionsDialog
 from stackup_editor.models import (
     COPPER_TYPES,
     DIELECTRIC_TYPE_CHOICES,
@@ -809,6 +811,8 @@ class StackupEditorWindow(QMainWindow):
         self._solver_result_window: FieldSolverResultsDialog | None = None
         self._impedance_dialog: CalculateImpedanceDialog | None = None
         self._material_comparison_dialog: MaterialComparisonDialog | None = None
+        self._copper_roughness_dialog: CopperRoughnessDialog | None = None
+        self._material_constructions_dialog: MaterialConstructionsDialog | None = None
         self.build_context_menu_handler = None
         self.impedance_workspace = ImpedanceWorkspaceState()
         self._impedance_legacy_migrated = False
@@ -1359,12 +1363,63 @@ class StackupEditorWindow(QMainWindow):
         )
         self.material_comparison_action.triggered.connect(self._open_material_comparison)
 
+        self.copper_roughness_action = self.help_menu.addAction("Copper Roughness")
+        self.copper_roughness_action.setStatusTip(
+            "View the animated copper profile guide and Rz/Rq reference values"
+        )
+        self.copper_roughness_action.triggered.connect(self._open_copper_roughness_help)
+
+        self.material_constructions_action = self.help_menu.addAction(
+            "Material Constructions"
+        )
+        self.material_constructions_action.setStatusTip(
+            "View glass-weave constructions and their measured transmission response"
+        )
+        self.material_constructions_action.triggered.connect(
+            self._open_material_constructions_help
+        )
+
     def _open_material_comparison(self) -> None:
         if self._material_comparison_dialog is None:
             self._material_comparison_dialog = MaterialComparisonDialog(self.catalog, self)
         self._material_comparison_dialog.show()
         self._material_comparison_dialog.raise_()
         self._material_comparison_dialog.activateWindow()
+
+    def _open_copper_roughness_help(self) -> None:
+        if self._copper_roughness_dialog is None:
+            gif_path = self.root_path / "data" / "copperroughness.gif"
+            self._copper_roughness_dialog = CopperRoughnessDialog(
+                gif_path,
+                self,
+                hover_image_paths={
+                    "RTF": self.root_path / "data" / "roughness_hover_rtf.png",
+                    "VLP": self.root_path / "data" / "roughness_hover_vlp.png",
+                    "HVLP": self.root_path / "data" / "roughness_hover_hvlp_ulp.png",
+                    "ULP": self.root_path / "data" / "roughness_hover_hvlp_ulp.png",
+                    "Rz": self.root_path / "data" / "roughness_hover_rz.png",
+                    "Rq": self.root_path / "data" / "roughness_hover_rq.png",
+                },
+            )
+        self._copper_roughness_dialog.show()
+        self._copper_roughness_dialog.raise_()
+        self._copper_roughness_dialog.activateWindow()
+
+    def _open_material_constructions_help(self) -> None:
+        if self._material_constructions_dialog is None:
+            self._material_constructions_dialog = MaterialConstructionsDialog(
+                self.root_path / "data" / "material_constructions_performance.png",
+                self.root_path / "data" / "material_constructions_overview.png",
+                (
+                    self.root_path / "data" / "fiber_glass_effect.png",
+                    self.root_path / "data" / "fiber_glass_weave_comparison.png",
+                    self.root_path / "data" / "fiber_glass_zigzag_routing.png",
+                ),
+                self,
+            )
+        self._material_constructions_dialog.show()
+        self._material_constructions_dialog.raise_()
+        self._material_constructions_dialog.activateWindow()
 
     def _sync_command_menu_state(self) -> None:
         self.add_layer_above_action.setEnabled(not self.is_flex_zone and self.add_above_button.isEnabled())

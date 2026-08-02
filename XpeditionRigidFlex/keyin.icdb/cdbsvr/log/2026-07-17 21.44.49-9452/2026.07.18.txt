@@ -1,0 +1,38 @@
+[2026.07.18 00:31:30] [0166m.40s.355ms] [1] SC[94]: UnRegistered sub-client [XPDAddin] with ID [9] for session ID [94] host [MOguz] user [donme] process ID [6396]
+[2026.07.18 00:31:30] [0166m.40s.377ms] [1] SC[94]: UnRegistered sub-client [ExpeditionCrossProber] with ID [7] for session ID [94] host [MOguz] user [donme] process ID [6396]
+[2026.07.18 00:31:38] [0166m.48s.312ms] [1] SC[94]: UnRegistered sub-client [Expedition PCB_213477765] with ID [1] for session ID [94] host [MOguz] user [donme] process ID [6396]
+[2026.07.18 00:31:38] [0166m.48s.328ms] [1] CMT: Removed client [94]
+[2026.07.18 00:31:38] [0166m.48s.328ms] [1] CMT: There are no clients left - waiting [1 seconds]
+[2026.07.18 00:31:38] [0166m.48s.659ms] [1] SDL: The last connected iCDB Server Monitor [1] is waiting for server close
+[2026.07.18 00:31:40] [0166m.50s.230ms] [0] CMT: Starting server auto-close
+[2026.07.18 00:31:40] [0166m.50s.306ms] [0] S: Closing server
+[2026.07.18 00:31:40] [0166m.50s.378ms] [0] iCDB Server PI: Closing plugins
+[2026.07.18 00:31:40] [0166m.50s.379ms] [0] iCDB Server PI: Plugins closed
+[2026.07.18 00:31:40] [0166m.50s.379ms] [0] iCDB Server PI: Unloading database
+[2026.07.18 00:31:40] [0166m.50s.379ms] [0] iCDB Server PI: Saving storage
+[2026.07.18 00:31:40] [0166m.50s.379ms] [0] iCDB Server PI: Closing database
+[2026.07.18 00:31:40] [0166m.50s.380ms] [1] iCDB Server PI: Stats: Database defragmentation: max[4] avg[1] holes[71%] data[75%]
+[2026.07.18 00:31:40] [0166m.50s.380ms] [1] iCDB Server PI: Stats: Database file size [114400 (111.7 kB)]
+[2026.07.18 00:31:40] [0166m.50s.381ms] [1] iCDB Server PI: WARNING: Database needs defragmentation!
+[2026.07.18 00:31:40] [0166m.50s.384ms] [0] iCDB Server PI: Database closed
+[2026.07.18 00:31:40] [0166m.50s.384ms] [0] iCDB Server PI: Defragmenting database
+[2026.07.18 00:31:40] [0166m.50s.385ms] [0] iCDB Server PI: Creating database [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigidFlex\keyin.icdb] backup to file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigidFlex\keyin.icdb\cdbback\2026-07-18 00.31.40-9452-d.zip]
+[2026.07.18 00:31:40] [0166m.50s.395ms] [0] iCDB Server PI: Database backup: DONE
+[2026.07.18 00:31:40] [0166m.50s.404ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.18 00:31:40] [0166m.50s.404ms] [0] Database GUARD OK: [114400]
+[2026.07.18 00:31:40] [0166m.50s.404ms] [0] SingleFile: [4ac9-2d40-e52f-ab3e] SFI version check [1009] [1009]
+[2026.07.18 00:31:40] [0166m.50s.404ms] [0] SingleFile: [4ac9-2d40-e52f-ab3e] Database SFI header has been read in [460us]
+[2026.07.18 00:31:40] [0166m.50s.409ms] [1] iCDB Server PI: Stats: Database file sizes: before[114400 (111.7 kB)], after[68080 (66.5 kB)], gain[46320 (45.2 kB)]
+[2026.07.18 00:31:40] [0166m.50s.410ms] [0] Single file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigidFlex\keyin.icdb\icdb.dat] closed with size [68080 (66.5 kB)]
+[2026.07.18 00:31:40] [0166m.50s.415ms] [0] iCDB Server PI: Database defragmentation completed successfully
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] BackupTransaction: Removing database backup [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigidFlex\keyin.icdb\cdbback\2026-07-18 00.31.40-9452-d.zip]
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: Total iCDB execution time: [59431] ticks
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: Total iCDB execution time: [5943] microseconds
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: Total iCDB commands count: [76]
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: Average iCDB speed:        [12787] commands per second
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: Mem[18272256]
+[2026.07.18 00:31:40] [0166m.50s.415ms] [1] iCDB Server PI: Stats: MemPeak[30281728]
+[2026.07.18 00:31:40] [0166m.50s.445ms] [1] SD[1]: Removing the last connected iCDB Server Monitor [1]
+[2026.07.18 00:31:40] [0166m.50s.615ms] [0] MWT: Destroy the shutdown block reason.
+[2026.07.18 00:31:40] [0166m.50s.617ms] [0] MWT: STOP
+[2026.07.18 00:31:40] [0166m.50s.617ms] [0] S: STOP

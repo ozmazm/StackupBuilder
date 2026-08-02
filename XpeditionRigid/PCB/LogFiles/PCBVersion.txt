@@ -1,0 +1,18 @@
+Xpedition Layout Version: 124.0.2527.6485
+
+
+
+Environment Variables:
+----------------------
+VALOR_ENV_FILE = "C:\SiemensEDA\XENTP2409\SDD_HOME\Valor_NPI\env"
+HOME = "C:\Users\donme\AppData\Roaming\SPB_Data"
+HOMEDRIVE = "C:"
+HOMEPATH = "\Users\donme"
+MGC_HOME = "C:\SiemensEDA\XENTP2409\MGC_HOME.ixw"
+MGC_PCB_LANGUAGE = "English"
+OS = "Windows_NT"
+PATH = "C:\SiemensEDA\XENTP2409\SDD_HOME\xe\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\bin;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win32\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\jre\default\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\wg\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common3D\win64\lib;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files\HP\OMEN-Broadcast\Common;C:\Program Files\HP\HP One Agent;C:\Program Files\NVIDIA Corporation\NVIDIA app\NvDLISR;C:\Users\donme\.cargo\bin;C:\Users\donme\AppData\Local\Microsoft\WindowsApps;C:\Users\donme\AppData\Local\Python\bin;C:\Users\donme\AppData\Roaming\SPB_Data\.local\bin;C:\Users\donme\AppData\Local\Programs\cursor\resources\app\bin"
+QUARTUS_ROOTDIR = "C:\intelFPGA_pro\23.3\quartus"
+SDD_HOME = "C:\SiemensEDA\XENTP2409\SDD_HOME"
+TEMP = "C:\Users\donme\AppData\Local\Temp"
+TMP = "C:\Users\donme\AppData\Local\Temp"

@@ -1,0 +1,259 @@
+[2026.07.21 22:54:24] [0000m.00s.013ms] [0] WELCOME
+[2026.07.21 22:54:24] [0000m.00s.015ms] [1] iCDB Server ver.3.242, 1TMAkS/K5diX+FZQBzeW7A, build:25213694 created 2024-08-20 08:05:30, sources stamp:1TMAkS/K5diX+FZQBzeW7A
+[2026.07.21 22:54:24] [0000m.00s.015ms] [1] Unpublished work. Copyright 2024 Siemens\r\n\r\nThis material contains trade secrets or otherwise confidential\r\ninformation owned by Siemens Industry Software Inc.\r\nor its affiliates (collectively, 'SISW'), or its licensors.\r\nAccess to and use of this information is strictly limited\r\nas set forth in the Customer's applicable agreements with SISW.
+[2026.07.21 22:54:24] [0000m.00s.015ms] [1] Base flow version [2409]
+[2026.07.21 22:54:24] [0000m.00s.015ms] [1] Install Id [2753288], Flow Id [Xpedition 2409], Full Flow Name [Xpedition 2409], Exact Access Date [2024/08/01]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] Machine [MOGUZ]  IP [127.0.0.1,192.168.56.1,192.168.88.139]  User [donme]  PID [31960]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] Operating system [Microsoft Windows 10 Home Premium Edition, 64-bit (build 26200)]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] Current working dir [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\PCB]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] PATH [C:\SiemensEDA\XENTP2409\SDD_HOME\xe\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\bin;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win32\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\jre\default\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\bin;C:\SiemensEDA\XENTP2409\MGC_HOME.ixw\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\wg\win64\lib;C:\SiemensEDA\XENTP2409\SDD_HOME\common3D\win64\lib;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files\HP\OMEN-Broadcast\Common;C:\Program Files\HP\HP One Agent;C:\Program Files\NVIDIA Corporation\NVIDIA app\NvDLISR;C:\Users\donme\.cargo\bin;C:\Users\donme\AppData\Local\Microsoft\WindowsApps;C:\Users\donme\AppData\Local\Python\bin;C:\Users\donme\AppData\Roaming\SPB_Data\.local\bin;C:\Users\donme\AppData\Local\Programs\cursor\resources\app\bin]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] SDD_HOME [C:\SiemensEDA\XENTP2409\SDD_HOME] on file system [NTFS]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] SDD_PLATFORM [win64]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] WDIR [C:\WDIR\XENTP2409;C:\SiemensEDA\XENTP2409\SDD_HOME\standard;C:\SiemensEDA\HL2409\SDD_HOME\hlsa\cross-probe\2409_scripts]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] Local iCDB working dir [C:\WDIR\XENTP2409\iCDB] on file system [NTFS]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [1] S: Config file name [ServerWG.cfg]
+[2026.07.21 22:54:24] [0000m.00s.020ms] [2] S: Loading config files
+[2026.07.21 22:54:24] [0000m.00s.021ms] [1] Config file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\cdbsvr\ServerWG.cfg] not found
+[2026.07.21 22:54:24] [0000m.00s.021ms] [1] Config: Non-default value [System.SingleUserMode] = [no]
+[2026.07.21 22:54:24] [0000m.00s.022ms] [3] S: Config loaded
+[2026.07.21 22:54:24] [0000m.00s.022ms] [0] S: Project path [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb] on file system [NTFS]
+[2026.07.21 22:54:24] [0000m.00s.022ms] [0] S: Project file (.prj) path [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\XpeditionRigid.prj] on file system [NTFS]
+[2026.07.21 22:54:24] [0000m.00s.022ms] [1] S: WARNING: Database auto-repair support DISABLED
+[2026.07.21 22:54:24] [0000m.00s.022ms] [0] S: Multi-user mode (config)
+[2026.07.21 22:54:24] [0000m.00s.022ms] [0] S: Event polling mode autodetection
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: Started up automatically by iCDB Client: MOGUZ:donme:11580
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: Auto close mode
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: Database ID [37b4-806a-308e-99dc-76ec-f5ad-6ecf-5a60-a0bb-f526-044d-0aa8]
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] PathTranslator: BEGIN dumping
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] PathTranslator: Local -> global path prefix list
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] PathTranslator: Global -> local path prefix list
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] PathTranslator: END dumping
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: START
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: Server startup lock file created
+[2026.07.21 22:54:24] [0000m.00s.023ms] [0] S: Listening for client connections on port [10001]
+[2026.07.21 22:54:24] [0000m.00s.024ms] [0] S: Server network ID [MOguz:192.168.56.1,192.168.88.139,MOguz:10001]
+[2026.07.21 22:54:24] [0000m.00s.024ms] [0] S: Server GUID [625f-8cb6-86b8-33be-07ec-f5a6-7ecf-5a60-6e2a-f526-044d-0aa8]
+[2026.07.21 22:54:24] [0000m.00s.024ms] [0] S: Project GUID [37b4-806a-308e-99dc-76ec-f5ad-6ecf-5a60-a0bb-f526-044d-0aa8]
+[2026.07.21 22:54:24] [0000m.00s.025ms] [0] S: Wrote data to server address file
+[2026.07.21 22:54:24] [0000m.00s.025ms] [0] S: Server startup lock file removed
+[2026.07.21 22:54:24] [0000m.00s.025ms] [1] S: WARNING: The last server session [2026-07-21 21.48.55-12752] with GUID [0254-35b5-bd60-7611-71fb-f5ad-1fbf-5a60-a838-f526-044d-0aa8] on this machine with WDIR [C:\WDIR\XENTP2409] shutdown unexpectedly.
+[2026.07.21 22:54:24] [0000m.00s.025ms] [1] ProjectBackupManager: Setting project file (.prj) path: [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\XpeditionRigid.prj]
+[2026.07.21 22:54:24] [0000m.00s.048ms] [0] S: Plugins loaded: [PIM] [ENetGen70] 
+[2026.07.21 22:54:24] [0000m.00s.048ms] [1] ServerToolkit: INFO: Plugin not found in SDD_ICDB_BIN [C:\SiemensEDA\XENTP2409\SDD_HOME\iCDB\win64\bin]
+[2026.07.21 22:54:24] [0000m.00s.049ms] [1] ServerToolkit: INFO: Plugin not found in SDD_COMMON_BIN [C:\SiemensEDA\XENTP2409\SDD_HOME\common\win64\bin]
+[2026.07.21 22:54:24] [0000m.00s.049ms] [1] ServerToolkit: INFO: Plugin not found in PATH
+[2026.07.21 22:54:24] [0000m.00s.049ms] [1] ServerToolkit: INFO: Plugin not found in CWD
+[2026.07.21 22:54:24] [0000m.00s.049ms] [1] ServerToolkit: INFO: returning just plugin exe name!
+[2026.07.21 22:54:24] [0000m.00s.049ms] [0] S: Local disc access time: 4 us
+[2026.07.21 22:54:24] [0000m.00s.049ms] [0] S: File server access time: 5 us
+[2026.07.21 22:54:24] [0000m.00s.049ms] [0] S: WARNING: The last iCDB Server session [MOguz (2026-07-21 21.48.55-12752)] with GUID [0254-35b5-bd60-7611-71fb-f5ad-1fbf-5a60-a838-f526-044d-0aa8] shutdown unexpectedly. Database integrity check forced.
+[2026.07.21 22:54:24] [0000m.00s.049ms] [0] Single file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\icdb.dat] size [77680 (75.9 kB)]
+[2026.07.21 22:54:24] [0000m.00s.049ms] [1] Single file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\icdb.dat] opened in read-write mode
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] Database GUARD MISMATCH: [77232] against [77680]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] Database GUARD MISMATCH: [77232] against [77680]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] Database GUARD MISMATCH: [77232] against [77680]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] Database GUARD MISMATCH: [77232] against [77680]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] Database GUARD MISMATCH: [77232] against [77680]
+[2026.07.21 22:54:24] [0000m.00s.050ms] [0] SingleFile: [4e4d-7c2e-a29b-0ee5] SFI version check [1009] [1009]
+[2026.07.21 22:54:24] [0000m.00s.052ms] [0] SingleFile: [4e4d-7c2e-a29b-0ee5] Reset holes information - force defragmentation
+[2026.07.21 22:54:24] [0000m.00s.052ms] [0] SingleFile: [4e4d-7c2e-a29b-0ee5] Database SFI header has been read in [2ms 39us]
+[2026.07.21 22:54:24] [0000m.00s.054ms] [0] iCDB Server PI: Server & plugin session [74]
+[2026.07.21 22:54:24] [0000m.00s.054ms] [0] iCDB Server PI: Opening database [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb]
+[2026.07.21 22:54:24] [0000m.00s.054ms] [0] iCDB Server PI: Database [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb] opened
+[2026.07.21 22:54:24] [0000m.00s.068ms] [0] iCDB Database: Checking existence of constraint definitions
+[2026.07.21 22:54:24] [0000m.00s.069ms] [0] iCDB Database: Checking constraint definitions version
+[2026.07.21 22:54:24] [0000m.00s.113ms] [1] iCDB Database: Constraint definitions version [ce_ee.cns=7.10.78;user.cns=0a51-aaac-9e2c-ee01-6e31-128c-e311-2860-cfa5-a02d-cde5-e5f5,71f3-0e18-89b7-5794-3c34-2289-c342-2860-c953-a02d-cde5-e5f5] up to date
+[2026.07.21 22:54:24] [0000m.00s.123ms] [1] iCDB Server PI: Checking database integrity
+[2026.07.21 22:54:24] [0000m.00s.129ms] [1] iCDB Server PI: Database integrity check PASSED
+[2026.07.21 22:54:24] [0000m.00s.129ms] [0] iCDB Server PI: Initializing plugins
+[2026.07.21 22:54:24] [0000m.00s.130ms] [0] iCDB Server PI: Plugins initialized
+[2026.07.21 22:54:24] [0000m.00s.130ms] [0] S: iCDB database loaded
+[2026.07.21 22:54:24] [0000m.00s.131ms] [0] S: Starting threads
+[2026.07.21 22:54:24] [0000m.00s.131ms] [0] BT: Listening for broadcast messages on port [10000]
+[2026.07.21 22:54:24] [0000m.00s.132ms] [0] IT: Session [75] for host [MOguz] user [donme] client type[0] clsvrPluginID[0] with process ID [11580] created
+[2026.07.21 22:54:24] [0000m.00s.132ms] [1] CMT: There are [1] clients now: 75
+[2026.07.21 22:54:24] [0000m.00s.134ms] [1] SC[75]: Registered sub-client [Expedition PCB_563231171] with ID [1] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:24] [0000m.00s.136ms] [0] MWT: WindowProc: WM_NCCREATE
+[2026.07.21 22:54:24] [0000m.00s.139ms] [0] IT: iCDB Server Monitor session [1] for host [MOguz] user [donme] with process ID [28852] created
+[2026.07.21 22:54:24] [0000m.00s.139ms] [1] DMT: There are [1] iCDB Server Monitor connected now
+[2026.07.21 22:54:24] [0000m.00s.142ms] [1] SC[75]: Registered sub-client [EEVM_EEVM_1350075008] with ID [2] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:24] [0000m.00s.142ms] [1] SC[75]: UnRegistered sub-client [EEVM_EEVM_1350075008] with ID [2] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:29] [0000m.05s.826ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563243125] with ID [3] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:29] [0000m.05s.828ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563243125] with ID [3] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:30] [0000m.06s.167ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563243468] with ID [4] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:30] [0000m.06s.169ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563243468] with ID [4] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:32] [0000m.08s.291ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563245578] with ID [5] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:32] [0000m.08s.295ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563245578] with ID [5] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:33] [0000m.09s.293ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563246578] with ID [6] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:33] [0000m.09s.297ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563246578] with ID [6] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:33] [0000m.09s.304ms] [1] SC[75]: Registered sub-client [ExpeditionCrossProber] with ID [7] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:33] [0000m.09s.306ms] [1] SC[75]: Registered sub-client [StartServerClient588c] with ID [8] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:33] [0000m.09s.306ms] [1] SC[75]: UnRegistered sub-client [StartServerClient588c] with ID [8] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:38] [0000m.14s.964ms] [1] SC[75]: Registered sub-client [XPDAddin] with ID [9] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:54:54] [0000m.30s.386ms] [0] DFAMT: File server access time: 16 us
+[2026.07.21 22:54:56] [0000m.32s.749ms] [0] IT: Session [76] for host [MOguz] user [donme] client type[0] clsvrPluginID[0] with process ID [21816] created
+[2026.07.21 22:54:56] [0000m.32s.750ms] [1] SC[76]: Registered sub-client [donme (BE CES)] with ID [1] for session ID [76] host [MOguz] user [donme] process ID [21816]
+[2026.07.21 22:54:56] [0000m.32s.849ms] [1] CMT: There are [2] clients now: 75, 76
+[2026.07.21 22:54:59] [0000m.35s.339ms] [1] SC[76]: UnRegistered sub-client [donme (BE CES)] with ID [1] for session ID [76] host [MOguz] user [donme] process ID [21816]
+[2026.07.21 22:54:59] [0000m.35s.411ms] [1] CMT: Removed client [76]
+[2026.07.21 22:54:59] [0000m.35s.411ms] [1] CMT: There are [1] clients now: 75
+[2026.07.21 22:55:02] [0000m.38s.517ms] [1] SC[75]: Registered sub-client [donme (Stackup Editor)] with ID [10] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:02] [0000m.38s.669ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563275953] with ID [11] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:02] [0000m.38s.670ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563275953] with ID [11] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:13] [0000m.49s.882ms] [1] SC[75]: UnRegistered sub-client [donme (Stackup Editor)] with ID [10] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:23] [0000m.59s.782ms] [0] IT: Session [77] for host [MOguz] user [donme] client type[0] clsvrPluginID[0] with process ID [29568] created
+[2026.07.21 22:55:23] [0000m.59s.783ms] [1] SC[77]: Registered sub-client [donme (BE CES)] with ID [1] for session ID [77] host [MOguz] user [donme] process ID [29568]
+[2026.07.21 22:55:23] [0000m.59s.793ms] [1] CMT: There are [2] clients now: 75, 77
+[2026.07.21 22:55:27] [0001m.03s.293ms] [1] SC[77]: Registered sub-client [iCESPI.cmsstk] with ID [2] for session ID [77] host [MOguz] user [donme] process ID [29568]
+[2026.07.21 22:55:44] [0001m.20s.610ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317906] with ID [12] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.611ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317906] with ID [12] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.617ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317906] with ID [13] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.618ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317906] with ID [13] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.644ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317937] with ID [14] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.645ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317937] with ID [14] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.650ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317953] with ID [15] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.651ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317953] with ID [15] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.656ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317953] with ID [16] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.658ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317953] with ID [16] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.662ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317953] with ID [17] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.664ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317953] with ID [17] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.675ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317968] with ID [18] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.676ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317968] with ID [18] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.681ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317968] with ID [19] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.682ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317968] with ID [19] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.686ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317984] with ID [20] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.687ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317984] with ID [20] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.691ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563317984] with ID [21] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.693ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563317984] with ID [21] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:44] [0001m.20s.802ms] [1] SC[77]: UnRegistered sub-client [iCESPI.cmsstk] with ID [2] for session ID [77] host [MOguz] user [donme] process ID [29568]
+[2026.07.21 22:55:44] [0001m.20s.813ms] [1] SC[77]: WARNING: Trying to get data for non existing sub-client [2]
+[2026.07.21 22:55:46] [0001m.22s.318ms] [1] SC[77]: UnRegistered sub-client [donme (BE CES)] with ID [1] for session ID [77] host [MOguz] user [donme] process ID [29568]
+[2026.07.21 22:55:46] [0001m.22s.378ms] [1] SC[75]: Registered sub-client [JobPrefsDBPI_563319671] with ID [22] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:46] [0001m.22s.380ms] [1] SC[75]: UnRegistered sub-client [JobPrefsDBPI_563319671] with ID [22] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:46] [0001m.22s.413ms] [1] CMT: Removed client [77]
+[2026.07.21 22:55:46] [0001m.22s.413ms] [1] CMT: There are [1] clients now: 75
+[2026.07.21 22:55:46] [0001m.22s.496ms] [1] SC[75]: UnRegistered sub-client [XPDAddin] with ID [9] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:46] [0001m.22s.498ms] [1] SC[75]: UnRegistered sub-client [ExpeditionCrossProber] with ID [7] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:48] [0001m.24s.335ms] [1] SC[75]: UnRegistered sub-client [Expedition PCB_563231171] with ID [1] for session ID [75] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:48] [0001m.24s.416ms] [1] CMT: Removed client [75]
+[2026.07.21 22:55:48] [0001m.24s.416ms] [1] CMT: There are no clients left - waiting [1 seconds]
+[2026.07.21 22:55:48] [0001m.24s.671ms] [1] SDL: The last connected iCDB Server Monitor [1] is waiting for server close
+[2026.07.21 22:55:48] [0001m.24s.766ms] [0] IT: Session [78] for host [MOguz] user [donme] client type[0] clsvrPluginID[0] with process ID [11580] created
+[2026.07.21 22:55:48] [0001m.24s.767ms] [1] SC[78]: Registered sub-client [Expedition PCB_563322062] with ID [1] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.273ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563323562] with ID [2] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.274ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563323562] with ID [2] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.344ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563323640] with ID [3] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.346ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563323640] with ID [3] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.675ms] [1] SC[78]: Registered sub-client [ExpeditionCrossProber] with ID [4] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.677ms] [1] SC[78]: Registered sub-client [StartServerClient588c] with ID [5] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:50] [0001m.26s.677ms] [1] SC[78]: UnRegistered sub-client [StartServerClient588c] with ID [5] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:55:56] [0001m.32s.935ms] [1] SC[78]: Registered sub-client [XPDAddin] with ID [6] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:06] [0001m.42s.649ms] [1] SC[78]: Registered sub-client [donme (Stackup Editor)] with ID [7] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:07] [0001m.43s.320ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563340609] with ID [8] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:07] [0001m.43s.322ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563340609] with ID [8] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:15] [0001m.51s.820ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563349109] with ID [9] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:15] [0001m.51s.822ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563349109] with ID [9] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:21] [0001m.57s.451ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563354734] with ID [10] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:21] [0001m.57s.452ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563354734] with ID [10] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:23] [0001m.59s.708ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563357000] with ID [11] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:23] [0001m.59s.709ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563357000] with ID [11] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:24] [0002m.00s.198ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563357500] with ID [12] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:24] [0002m.00s.200ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563357500] with ID [12] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:25] [0002m.01s.392ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563358687] with ID [13] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:25] [0002m.01s.394ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563358687] with ID [13] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:26] [0002m.02s.096ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563359390] with ID [14] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:26] [0002m.02s.098ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563359390] with ID [14] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:27] [0002m.03s.212ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563360500] with ID [15] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:27] [0002m.03s.214ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563360500] with ID [15] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:28] [0002m.04s.969ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563362265] with ID [16] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:28] [0002m.04s.970ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563362265] with ID [16] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:30] [0002m.06s.405ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563363703] with ID [17] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:30] [0002m.06s.407ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563363703] with ID [17] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:31] [0002m.07s.536ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563364828] with ID [18] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:31] [0002m.07s.538ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563364828] with ID [18] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:35] [0002m.11s.959ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563369250] with ID [19] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:35] [0002m.11s.961ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563369250] with ID [19] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:37] [0002m.13s.161ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563370437] with ID [20] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:37] [0002m.13s.162ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563370437] with ID [20] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:38] [0002m.14s.304ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563371593] with ID [21] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:38] [0002m.14s.305ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563371593] with ID [21] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:39] [0002m.15s.246ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563372531] with ID [22] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:39] [0002m.15s.247ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563372531] with ID [22] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:40] [0002m.16s.400ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563373687] with ID [23] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:40] [0002m.16s.401ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563373687] with ID [23] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:41] [0002m.17s.152ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563374437] with ID [24] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:41] [0002m.17s.153ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563374437] with ID [24] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:42] [0002m.18s.138ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563375421] with ID [25] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:42] [0002m.18s.139ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563375421] with ID [25] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:42] [0002m.18s.830ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563376125] with ID [26] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:42] [0002m.18s.832ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563376125] with ID [26] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:43] [0002m.19s.767ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563377046] with ID [27] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:43] [0002m.19s.769ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563377046] with ID [27] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:44] [0002m.20s.357ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563377640] with ID [28] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:44] [0002m.20s.359ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563377640] with ID [28] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:46] [0002m.22s.778ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563380078] with ID [29] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:46] [0002m.22s.779ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563380078] with ID [29] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:47] [0002m.23s.681ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563380968] with ID [30] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:47] [0002m.23s.682ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563380968] with ID [30] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:51] [0002m.27s.395ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563384687] with ID [31] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:51] [0002m.27s.396ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563384687] with ID [31] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:52] [0002m.28s.274ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563385562] with ID [32] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:52] [0002m.28s.275ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563385562] with ID [32] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:54] [0002m.30s.319ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563387609] with ID [33] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:54] [0002m.30s.321ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563387609] with ID [33] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:55] [0002m.31s.039ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563388328] with ID [34] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:55] [0002m.31s.040ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563388328] with ID [34] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:56] [0002m.32s.433ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563389734] with ID [35] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:56] [0002m.32s.434ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563389734] with ID [35] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:57] [0002m.33s.949ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563391234] with ID [36] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:56:57] [0002m.33s.950ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563391234] with ID [36] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:57:52] [0003m.28s.286ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563445578] with ID [37] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:57:52] [0003m.28s.288ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563445578] with ID [37] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:58:06] [0003m.42s.333ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563459625] with ID [38] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 22:58:06] [0003m.42s.335ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563459625] with ID [38] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:02:35] [0008m.11s.509ms] [1] SC[78]: Registered sub-client [JobPrefsDBPI_563728796] with ID [39] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:02:35] [0008m.11s.511ms] [1] SC[78]: UnRegistered sub-client [JobPrefsDBPI_563728796] with ID [39] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:03:42] [0009m.18s.535ms] [1] SC[78]: UnRegistered sub-client [donme (Stackup Editor)] with ID [7] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:03:49] [0009m.25s.052ms] [1] SC[78]: UnRegistered sub-client [XPDAddin] with ID [6] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:03:49] [0009m.25s.055ms] [1] SC[78]: UnRegistered sub-client [ExpeditionCrossProber] with ID [4] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:03:53] [0009m.29s.838ms] [1] SC[78]: UnRegistered sub-client [Expedition PCB_563322062] with ID [1] for session ID [78] host [MOguz] user [donme] process ID [11580]
+[2026.07.21 23:03:53] [0009m.29s.928ms] [1] CMT: Removed client [78]
+[2026.07.21 23:03:53] [0009m.29s.928ms] [1] SDL: The last connected iCDB Server Monitor [1] is waiting for server close
+[2026.07.21 23:03:53] [0009m.29s.928ms] [1] CMT: There are no clients left - waiting [1 seconds]
+[2026.07.21 23:03:55] [0009m.31s.038ms] [0] CMT: Starting server auto-close
+[2026.07.21 23:03:55] [0009m.31s.117ms] [0] S: Closing server
+[2026.07.21 23:03:55] [0009m.31s.309ms] [0] iCDB Server PI: Closing plugins
+[2026.07.21 23:03:55] [0009m.31s.309ms] [0] iCDB Server PI: Plugins closed
+[2026.07.21 23:03:55] [0009m.31s.309ms] [0] iCDB Server PI: Unloading database
+[2026.07.21 23:03:55] [0009m.31s.309ms] [0] iCDB Server PI: Saving storage
+[2026.07.21 23:03:55] [0009m.31s.309ms] [0] iCDB Server PI: Closing database
+[2026.07.21 23:03:55] [0009m.31s.311ms] [1] iCDB Server PI: Stats: Database defragmentation: max[2] avg[1] holes[40%] data[82%]
+[2026.07.21 23:03:55] [0009m.31s.311ms] [1] iCDB Server PI: Stats: Database file size [92132 (90.0 kB)]
+[2026.07.21 23:03:55] [0009m.31s.312ms] [1] iCDB Server PI: WARNING: Database needs defragmentation!
+[2026.07.21 23:03:55] [0009m.31s.334ms] [0] iCDB Server PI: Database closed
+[2026.07.21 23:03:55] [0009m.31s.334ms] [0] iCDB Server PI: Defragmenting database
+[2026.07.21 23:03:55] [0009m.31s.334ms] [0] iCDB Server PI: Creating database [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb] backup to file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\cdbback\2026-07-21 23.03.55-31960-d.zip]
+[2026.07.21 23:03:55] [0009m.31s.342ms] [0] iCDB Server PI: Database backup: DONE
+[2026.07.21 23:03:55] [0009m.31s.343ms] [0] SingleFile: [0000-0000-0000-0000] SFI header version check [1009] [1009]
+[2026.07.21 23:03:55] [0009m.31s.343ms] [0] Database GUARD OK: [92132]
+[2026.07.21 23:03:55] [0009m.31s.343ms] [0] SingleFile: [4e4d-7c2e-a29b-0ee5] SFI version check [1009] [1009]
+[2026.07.21 23:03:55] [0009m.31s.343ms] [0] SingleFile: [4e4d-7c2e-a29b-0ee5] Database SFI header has been read in [371us]
+[2026.07.21 23:03:55] [0009m.31s.348ms] [1] iCDB Server PI: Stats: Database file sizes: before[92132 (90.0 kB)], after[68080 (66.5 kB)], gain[24052 (23.5 kB)]
+[2026.07.21 23:03:55] [0009m.31s.349ms] [0] Single file [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\icdb.dat] closed with size [68080 (66.5 kB)]
+[2026.07.21 23:03:55] [0009m.31s.349ms] [0] iCDB Server PI: Database defragmentation completed successfully
+[2026.07.21 23:03:55] [0009m.31s.349ms] [1] BackupTransaction: Removing database backup [C:\Users\donme\OneDrive\Belgeler\StackUpEditor 2\XpeditionRigid\keyin.icdb\cdbback\2026-07-21 23.03.55-31960-d.zip]
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: Total iCDB execution time: [90492] ticks
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: Total iCDB execution time: [9049] microseconds
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: Total iCDB commands count: [78]
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: Average iCDB speed:        [8619] commands per second
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: Mem[18567168]
+[2026.07.21 23:03:55] [0009m.31s.350ms] [1] iCDB Server PI: Stats: MemPeak[32518144]
+[2026.07.21 23:03:55] [0009m.31s.436ms] [1] SD[1]: Removing the last connected iCDB Server Monitor [1]
+[2026.07.21 23:03:55] [0009m.31s.563ms] [0] MWT: Destroy the shutdown block reason.
+[2026.07.21 23:03:55] [0009m.31s.563ms] [0] MWT: STOP
+[2026.07.21 23:03:55] [0009m.31s.564ms] [0] S: STOP

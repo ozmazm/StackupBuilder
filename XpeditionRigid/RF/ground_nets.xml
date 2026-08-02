@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!--*****************************************************************************
+ Unpublished work. Copyright 2020 Siemens
+
+ This material contains trade secrets or otherwise confidential information
+ owned by Siemens Industry Software Inc. or its affiliates (collectively,
+ "SISW"), or its licensors. Access to and use of this information is strictly
+ limited as set forth in the Customer's applicable agreements with SISW.
+*****************************************************************************-->
+<RFProp>
+    <m_sub_props>
+        <RFMapProperties>
+        </RFMapProperties>
+    </m_sub_props>
+    <m_sub_strings>
+        <m_size>2</m_size>
+        <XString>
+            <m_value>GND</m_value>
+        </XString>
+        <XString>
+            <m_value>GROUND</m_value>
+        </XString>
+    </m_sub_strings>
+</RFProp>

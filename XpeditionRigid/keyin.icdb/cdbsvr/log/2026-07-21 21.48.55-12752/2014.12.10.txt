@@ -1,0 +1,9 @@
+[2014.12.10 22:49:38] [0001m.09s.213ms] [1] SC[73]: Registered sub-client [donme (Stackup Editor)] with ID [10] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:38] [0001m.09s.364ms] [1] SC[73]: Registered sub-client [JobPrefsDBPI_559378281] with ID [11] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:38] [0001m.09s.366ms] [1] SC[73]: UnRegistered sub-client [JobPrefsDBPI_559378281] with ID [11] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:42] [0001m.12s.909ms] [1] SC[73]: UnRegistered sub-client [donme (Stackup Editor)] with ID [10] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:44] [0001m.14s.822ms] [1] SC[73]: Registered sub-client [donme (Stackup Editor)] with ID [12] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:44] [0001m.14s.914ms] [1] SC[73]: Registered sub-client [JobPrefsDBPI_559383828] with ID [13] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:44] [0001m.14s.916ms] [1] SC[73]: UnRegistered sub-client [JobPrefsDBPI_559383828] with ID [13] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:49:46] [0001m.16s.950ms] [1] SC[73]: UnRegistered sub-client [donme (Stackup Editor)] with ID [12] for session ID [73] host [MOguz] user [donme] process ID [26052]
+[2014.12.10 22:50:00] [0001m.30s.685ms] [0] DFAMT: File server access time: 10 us

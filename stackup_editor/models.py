@@ -18,10 +18,10 @@ COPPER_RZ_BY_TYPE_UM = {
     "ULP": 1.09,
 }
 COPPER_RQ_BY_TYPE_UM = {
-    "RTF": 3.13,
-    "VLP": 1.21,
-    "HVLP": 1.23,
-    "ULP": 0.99,
+    "RTF": 0.48,
+    "VLP": 0.50,
+    "HVLP": 0.22,
+    "ULP": 0.12,
 }
 COPPER_TYPE_ROUGHNESS_EQUIVALENTS = {"STD": "ULP", "ED": "RTF", "RA": "VLP"}
 NO_FLOW_PREPREG_TYPE = "no_flow_prepreg"
@@ -87,7 +87,10 @@ def copper_rz_um(copper_type: str) -> float | None:
 
 
 def copper_roughness_um(copper_type: str) -> float:
-    return COPPER_RQ_BY_TYPE_UM.get(copper_roughness_reference_type(copper_type), 3.13)
+    return COPPER_RQ_BY_TYPE_UM.get(
+        copper_roughness_reference_type(copper_type),
+        COPPER_RQ_BY_TYPE_UM["RTF"],
+    )
 
 
 def copper_type_choice_label(copper_type: str) -> str:

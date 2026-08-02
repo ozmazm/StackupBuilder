@@ -1,0 +1,118 @@
+.FILETYPE MOA_EXPORT_SETTINGS
+.DATE "07/17/2026 22:46:16"
+.SCHEMA_VER 1
+.exec_order 
+ ..appname PCB_JOB
+  ...dlgname "IDF"
+  ...dlgname "Gerber"
+  ...dlgname "NCDrill"
+  ...dlgname "ODB"
+  ...dlgname "Neutral"
+  ...dlgname "GDSII"
+  ...dlgname "ExtendedPrint"
+  ...dlgname "CCZ"
+  ...dlgname "BOM"
+ ..appname PNL_JOB
+  ...dlgname "IDF"
+  ...dlgname "Gerber"
+  ...dlgname "NCDrill"
+  ...dlgname "ODB"
+  ...dlgname "Neutral"
+  ...dlgname "GDSII"
+  ...dlgname "ExtendedPrint"
+  ...dlgname "CCZ"
+.grid 
+ ..apptype PCB_JOB
+  ...outputname "IDF"
+    ....check 1
+    ....confile "Sys: IDF.idf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "Gerber"
+    ....check 1
+    ....confile "Sys:Gerber_08Layer.gpf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "NCDrill"
+    ....check 1
+    ....confile "Sys: Drill.dsf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "ODB"
+    ....check 1
+    ....confile "Sys: ODBSetup.ocf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "Neutral"
+    ....check 1
+    ....confile "Sys: XENeutral.eneu"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "GDSII"
+    ....check 1
+    ....confile "Sys: GDSSetup.gcf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "ExtendedPrint"
+    ....check 1
+    ....confile "Sys: ExtendedPrint.pcf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "CCZ"
+    ....check 0
+    ....confile "Sys: CCZOut.eccz"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "BOM"
+    ....check 0
+    ....confile "Sys: BOMSettings.bcf"
+    ....preconf ""
+    ....postconf ""
+ ..apptype PNL_JOB
+  ...outputname "IDF"
+    ....check 1
+    ....confile "Sys: IDF-Panel.idfp"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "Gerber"
+    ....check 1
+    ....confile "Sys: Gerber_08Layer.gpf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "NCDrill"
+    ....check 1
+    ....confile "Sys: Drill.dsf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "ODB"
+    ....check 1
+    ....confile "Sys: ODBSetup.ocf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "Neutral"
+    ....check 1
+    ....confile "Sys: XENeutral.eneu"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "GDSII"
+    ....check 1
+    ....confile "Sys: GDSSetup.gcf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "ExtendedPrint"
+    ....check 1
+    ....confile "Sys: ExtendedPrint.pcf"
+    ....preconf ""
+    ....postconf ""
+  ...outputname "CCZ"
+    ....check 1
+    ....confile "Sys: CCZOut.eccz"
+    ....preconf ""
+    ....postconf ""
+.chk_delgen 0
+.chk_stopgen 0
+.chk_deldata 0
+.scheme "Top_MOA"
+ ..scheme_location System
+
+ ..scheme_changed 0
